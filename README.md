@@ -18,7 +18,7 @@ This version is **ready to use out of the box** — no manual setup or coding re
 - 🎯 **Hot recalibration** anytime with **F12**
 - 🧭 **Five-point precision system** (four corners + center)
 - 🎮 **Digitalized analog stick** (LUp / LDown / LLeft / LRight)
-- 🖱️ **RawInput / tether feeders** — no vJoy required
+- 🖱️ **RawInput / tether feeders**
 - 💾 **Local configuration files** (`mapping.txt`, `calibration_rect.txt`)
 - 🖥️ Works with most PC arcade and emulator lightgun setups
 
