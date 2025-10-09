@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Guncon3Console</RootNamespace>
     <AssemblyName>Guncon3Console</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
@@ -27,6 +27,7 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -53,7 +54,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>latest</LangVersion>
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
@@ -63,13 +64,35 @@
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>latest</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -79,11 +102,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Calibration.cs" />
-    <Compile Include="Guncon3.cs" />
-    <Compile Include="GunState.cs" />
-    <Compile Include="Helper.cs" />
+    <Compile Include="CalibrationWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="RectCalib.cs" />
     <Compile Include="TetherScript\HIDController.cs" />
-    <Compile Include="MouseOperations.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TetherScript\Enumerators.cs" />
@@ -92,12 +115,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WinUSBNet\WinUSBNet.csproj">
-      <Project>{19d2707f-4692-4b5e-bfdf-cc057f4b5898}</Project>
-      <Name>WinUSBNet</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="mapping.txt">
@@ -115,6 +132,16 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GunconUSB\GunconUSB.csproj">
+      <Project>{5386810d-7312-4069-bd9c-9aec80092da0}</Project>
+      <Name>GunconUSB</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WinUSBNet\WinUSBNet.csproj">
+      <Project>{19d2707f-4692-4b5e-bfdf-cc057f4b5898}</Project>
+      <Name>WinUSBNet</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

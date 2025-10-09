@@ -1,447 +1,346 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using Guncon3Console.TetherScript;
+using System.Windows.Forms;
+using GunconUSB;                         // lector de la pistola (proyecto GunconUSB)
+using Guncon3Console.TetherScript;      // feeders TetherScript (ratón/teclado)
 
 namespace Guncon3Console
 {
-    /*
-    need to create app to map map gun function to keyboard/mouse/joy
-    for keyboard, use keycode byte
-    BTN_TRIGGER=MOUSE_LEFT
-    BTN_A1
-    BTN_A2
-    BTN_B1=1 //start
-    BTN_B2=5 //coint
-    BTN_C1=MOUSE_RIGHT
-    BTN_C2=MOUSE_MIDDLE
-
-    https://www.flickr.com/photos/playstationblog/1876974892/
-    https://upload.wikimedia.org/wikipedia/commons/c/c8/Guncon-3.jpg
-    */
-
-
-
-    //console sample app from https://stackoverflow.com/questions/474679/capture-console-exit-c-sharp
-
-    class Program
+    internal static class Program
     {
-        private static bool debugMode = false;
-        private static bool hasError = false;
+        private static RectCalib _rect;
+        private static volatile bool _running = true;
 
-        // if you want to allow only one instance otherwise remove the next line
-        static readonly Mutex mutex = new Mutex(false, "47c2b270-9e34-45e7-82ab-7b29bf54677d");
-
-        static ManualResetEvent run = new ManualResetEvent(true);
-
-        [DllImport("Kernel32")]
-        private static extern bool SetConsoleCtrlHandler(EventHandler handler, bool add);
-        private delegate bool EventHandler(CtrlType sig);
-        static EventHandler exitHandler;
-        enum CtrlType
+        [STAThread]
+        private static void Main(string[] args)
         {
-            CTRL_C_EVENT = 0,
-            CTRL_BREAK_EVENT = 1,
-            CTRL_CLOSE_EVENT = 2,
-            CTRL_LOGOFF_EVENT = 5,
-            CTRL_SHUTDOWN_EVENT = 6
-        }
-        private static bool ExitHandler(CtrlType sig)
-        {
-            Console.WriteLine("Shutting down: " + sig.ToString());
-            run.Reset();
-            Thread.Sleep(2000);
-            return false; // If the function handles the control signal, it should return TRUE. If it returns FALSE, the next handler function in the list of handlers for this process is used (from MSDN).
-        }
+            Console.Title = "GUNCON3";
+            PrintHeader();
 
-        static void Main(string[] args)
-        {
-            // if you want to allow only one instance otherwise remove the next 4 lines
-            if (!mutex.WaitOne(TimeSpan.FromSeconds(2), false))
-                return; // singleton application already started
+            // === "keys": muestra tabla de keycodes y salimos ===
+            if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
+            {
+                PrintKeyCodes();
+                return;
+            }
 
-            var showHelp = args.Contains("help", StringComparer.OrdinalIgnoreCase);
-            debugMode = args.Contains("debug", StringComparer.OrdinalIgnoreCase);
-            var mode4by3 = args.Contains("43", StringComparer.OrdinalIgnoreCase);
-            var showKeys = args.Contains("keys", StringComparer.OrdinalIgnoreCase);
-
-            exitHandler += new EventHandler(ExitHandler);
-            SetConsoleCtrlHandler(exitHandler, true);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
             try
             {
-                Console.BackgroundColor = ConsoleColor.Gray;
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.Clear();
-                Console.SetBufferSize(Console.BufferWidth, 1024);
+                Console.WriteLine("Guncon3 connecting...");
+                GunconReader.Connect();
+                Console.WriteLine("Guncon3 connected.");
+            }
+            catch (Exception ex)
+            {
+                FailAndExit("No se pudo conectar la Guncon3", ex);
+                return;
+            }
 
-                Console.Title = "GUNCON3";
-
-                Console.WriteLine("GUNCON3 V0.01 - BY SONIK");
-                Console.WriteLine();
-
-
-                if (showHelp)
+            if (!LoadRectCalib())
+            {
+                Console.WriteLine("No calibration_rect.txt encontrado. Abriendo calibración (modal)...");
+                LaunchCalibrationWindowModal();
+                if (!LoadRectCalib())
                 {
-                    Console.WriteLine("Arguments:");
-                    Console.WriteLine();
-                    Console.WriteLine("43\tEnable 4:3 mode. For use with MAME in 4:3 blackboxed on 16:9 resolution");
-                    Console.WriteLine("keys\tShow keycodes for command mapping");
-                    Console.WriteLine("debug\tEnable debug information");
-                    Console.WriteLine();
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
-                }
-
-
-                if (showKeys)
-                {
-                    ShowKeyCodes();
-                    Console.WriteLine();
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
-                }
-                
-
-                // start your threads here
-                //Thread thread1 = new Thread(new ThreadStart(ThreadFunc1));
-                //thread1.Start();
-
-                //Thread thread2 = new Thread(new ThreadStart(ThreadFunc2));
-                //thread2.IsBackground = true; // a background thread
-                //thread2.Start();
-
-
-                Console.WriteLine("4:3 inside 16:9 mode enabled");
-
-
-                Guncon3.Connect();
-                AbsMouseFeeder.Connect();
-                AbsMouseFeeder.Force4by3 = mode4by3;
-                KeyboardFeeder.Connect();
-                ReadMappingFile();
-                //TetherScriptKeyboardFeeder.Mapping.Add(GunButton.B1, 29 + 1);
-                //TetherScriptKeyboardFeeder.Mapping.Add(GunButton.B2, 29 + 5);
-
-                //TetherScriptAbsMouseFeeder.Mapping.Add(GunButton.Trigger, MouseButton.Left);
-                //TetherScriptAbsMouseFeeder.Mapping.Add(GunButton.C1, MouseButton.Right);
-                //TetherScriptAbsMouseFeeder.Mapping.Add(GunButton.C2, MouseButton.Middle);
-
-
-                if (File.Exists("calibration.txt"))
-                {
-                    Console.WriteLine("Using calibration data.");
-                    Calibration.Import();
-                }
-                else
-                {
-                    Console.WriteLine("No calibration data found. Openning calibration screen...");
-                    //while (Console.Read() != (int)ConsoleKey.Enter) { }
-                    Calibration.Calibrate();
-                    
-                    if (Calibration.k_coefs_seted)
-                    {
-                        Calibration.Export();
-                        Console.WriteLine("Calibration data saved.");
-
-                        //Console.WriteLine("Want to save No calibration data? (Y/N)");
-                        //var yesno = new string[] { "y", "n" };
-                        //var response = Console.ReadLine();
-                        //do
-                        //{
-                        //    if (response.Equals("y", StringComparison.OrdinalIgnoreCase))
-                        //    {
-                        //        Calibration.Export();
-                        //        Console.WriteLine("Calibration data saved.");
-                        //        break;
-                        //    }
-                        //    else if (response.Equals("n", StringComparison.OrdinalIgnoreCase))
-                        //    {
-                        //        break;
-                        //    }
-                        //    response = Console.ReadLine();
-                        //} while (true);
-                    }
-
-                }
-
-                if (!Calibration.k_coefs_seted)
-                {
-                    Console.WriteLine("Impossible to use without calibration.");
-                    hasError = true;
+                    FailAndExit("Impossible to use without calibration (no se pudo obtener calibración).");
                     return;
                 }
+            }
+            else
+            {
+                Console.WriteLine("Calibración cargada de calibration_rect.txt");
+            }
 
-                Thread.Sleep(500);
+            TryConnectFeeders();
+            LoadMapping("mapping.txt");
 
-                Console.WriteLine("Ready to use!");
+            Console.WriteLine("Mapping OK.");
+            Console.WriteLine("Ready to use!   (F12 = recalibrar,  R = recargar mapping.txt,  ESC = salir)");
 
-                while (run.WaitOne(0))
+            while (_running)
+            {
+                GunconReader.Read();
+
+                if (_rect != null && _rect.IsValid())
                 {
-                    //var state = Guncon3.Read();
-                    Guncon3.Read();
+                    double rawX = GunState.RAW_X;
+                    double rawY = GunState.RAW_Y;
+                    var (px, py) = _rect.Map(rawX, rawY);
 
+                    double nx = (_rect.ScreenW > 1) ? (px / (_rect.ScreenW - 1)) : 0.0;
+                    double ny = (_rect.ScreenH > 1) ? (py / (_rect.ScreenH - 1)) : 0.0;
+                    if (nx < 0) nx = 0; if (nx > 1) nx = 1;
+                    if (ny < 0) ny = 0; if (ny > 1) ny = 1;
+
+                    short ax = (short)Math.Round(nx * 32767.0);
+                    short ay = (short)Math.Round(ny * 32767.0);
+
+                    GunState.ABS_X = ax;
+                    GunState.ABS_Y = ay;
+                }
+
+                try
+                {
                     AbsMouseFeeder.Feed();
                     KeyboardFeeder.Feed();
-
-                    if (GunState.IsInsideScreen)
-                    {
-                        //MouseOperations.SetCursorPosition(GunState.ABS_X, GunState.ABS_Y);
-                        //vjoyFeeder.Feed(true);
-                    }
-                    else
-                    {
-                        //out of screen
-                    }
-                    /*
-                    if (GunState.BTN_TRIGGER != GunState.BTN_TRIGGER_LAST)
-                    {
-                        if (GunState.BTN_TRIGGER)
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.LeftDown);
-                        else
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.LeftUp);
-                    }
-
-                    if (GunState.BTN_C1 != GunState.BTN_C1_LAST)
-                    {
-                        if (GunState.BTN_C1)
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.RightDown);
-                        else
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.RightUp);
-                    }
-
-                    if (GunState.BTN_C2 != GunState.BTN_C2_LAST)
-                    {
-                        if (GunState.BTN_C2)
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.MiddleDown);
-                        else
-                            MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.MiddleDown);
-                    }
-                    */
-
-                    //if (GunState.BTN_TRIGGER)
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.LeftDown);
-                    //else if (GunState.BTN_TRIGGER != GunState.BTN_TRIGGER_LAST)
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.LeftUp);
-
-                    //if (state.C1)
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.RightDown);
-                    //else
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.RightUp);
-
-                    //if (state.C2)
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.MiddleDown);
-                    //else
-                    //    MouseOperations.MouseEvent(MouseOperations.MouseEventFlags.MiddleUp);
-
-                    //Thread.Sleep(0);
                 }
+                catch { }
 
-                // do thread syncs here signal them the end so they can clean up or use the manual reset event in them or abort them
-                //thread1.Abort();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("fail: ");
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.WriteLine(ex.Message);
-                if (ex.InnerException != null)
-                    Console.WriteLine("Inner: " + ex.InnerException.Message);
-                hasError = true;
-            }
-            finally
-            {
-                // do app cleanup here
-                Guncon3.Disconnect();
-                AbsMouseFeeder.Disconnect();
-                KeyboardFeeder.Disconnect();
-                Calibration.CloseCalibrationForm();
-
-                if (hasError && debugMode)//dont close console
+                if (Console.KeyAvailable)
                 {
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
+                    var k = Console.ReadKey(true);
+                    if (k.Key == ConsoleKey.Escape)
+                        _running = false;
+                    else if (k.Key == ConsoleKey.F12)
+                        Recalibrate();
+                    else if (k.Key == ConsoleKey.R)
+                    {
+                        Console.WriteLine("[Mapping] Recargando mapping.txt…");
+                        LoadMapping("mapping.txt");
+                        Console.WriteLine("[Mapping] OK.");
+                    }
                 }
 
-                // if you want to allow only one instance otherwise remove the next line
-                mutex.ReleaseMutex();
-
-                // remove this after testing
-                //Console.Beep(5000, 100);
+                Thread.Sleep(1);
             }
+
+            try { AbsMouseFeeder.Disconnect(); } catch { }
+            try { KeyboardFeeder.Disconnect(); } catch { }
+            try { GunconReader.Disconnect(); } catch { }
         }
 
-        private static void ReadMappingFile()
+        private static bool LoadRectCalib()
         {
-            //todo create default file if not exists
-            //if (!File.Exists("mapping.txt"))
-            //{
+            _rect = RectCalib.Load();
+            return _rect != null && _rect.IsValid();
+        }
 
-            //}
-
-
-            if (new FileInfo("mapping.txt").Length > 100000)//prevent if from reading a large file
-                throw new Exception("Invalid file size for mapping file");
-
-            var lines = File.ReadAllLines("mapping.txt");
-            var typegun = typeof(GunButton);
-            var typemouse = typeof(MouseButton);
-            byte linecount = 0;
+        private static void LaunchCalibrationWindowModal()
+        {
             try
             {
-                foreach (var line in lines)
-                {
-                    linecount++;
-
-                    if (!line.StartsWith("#") && !string.IsNullOrWhiteSpace(line))
-                    {
-                        var trimmedLine = line.TrimEnd();
-                        var dotIndex = trimmedLine.IndexOf('.');
-                        var equalIndex = trimmedLine.IndexOf('=');
-                        var mapDevice = trimmedLine.Substring(0, dotIndex);
-                        var key = trimmedLine.Substring(dotIndex + 1, equalIndex - dotIndex - 1);
-                        var value = trimmedLine.Substring(equalIndex + 1);
-                        var gunbtn = (GunButton)Enum.Parse(typegun, value);
-
-                        if (mapDevice == "KEYBOARD")
-                            KeyboardFeeder.Mapping.Add(gunbtn, byte.Parse(key));
-                        else if (mapDevice == "MOUSE")
-                            AbsMouseFeeder.Mapping.Add(gunbtn, (MouseButton)Enum.Parse(typemouse, key));
-                    }
-                }
+                using (var w = new CalibrationWindow())
+                    Application.Run(w);
             }
             catch (Exception ex)
             {
-                throw new Exception($"Error reading mapping file at line {linecount} - {ex.Message}");
+                Console.WriteLine("[Calibración] Error: " + ex.Message);
             }
         }
 
-        private static void ShowKeyCodes()
+        private static void Recalibrate()
         {
-            var FKeys = new List<string>();
-            FKeys.Add("dummy1");
-            FKeys.Add("dummy2");
-            FKeys.Add("dummy3");
-            FKeys.Add("dummy4");
-            FKeys.Add("a");
-            FKeys.Add("b");
-            FKeys.Add("c");
-            FKeys.Add("d");
-            FKeys.Add("e");
-            FKeys.Add("f");
-            FKeys.Add("g");
-            FKeys.Add("h");
-            FKeys.Add("i");
-            FKeys.Add("j");
-            FKeys.Add("k");
-            FKeys.Add("l");
-            FKeys.Add("m");
-            FKeys.Add("n");
-            FKeys.Add("o");
-            FKeys.Add("p");
-            FKeys.Add("q");
-            FKeys.Add("r");
-            FKeys.Add("s");
-            FKeys.Add("t");
-            FKeys.Add("u");
-            FKeys.Add("v");
-            FKeys.Add("w");
-            FKeys.Add("x");
-            FKeys.Add("y");
-            FKeys.Add("z");
-            FKeys.Add("1");
-            FKeys.Add("2");
-            FKeys.Add("3");
-            FKeys.Add("4");
-            FKeys.Add("5");
-            FKeys.Add("6");
-            FKeys.Add("7");
-            FKeys.Add("8");
-            FKeys.Add("9");
-            FKeys.Add("0");
-            FKeys.Add("ENTER");
-            FKeys.Add("ESCAPE");
-            FKeys.Add("BACKSPACE");
-            FKeys.Add("TAB");
-            FKeys.Add("SPACEBAR");
-            FKeys.Add("-");
-            FKeys.Add("=");
-            FKeys.Add("[");
-            FKeys.Add("]");
-            FKeys.Add("\\");
-            FKeys.Add("");
-            FKeys.Add(";");
-            FKeys.Add("dummy5");
-            FKeys.Add("`");
-            FKeys.Add(",");
-            FKeys.Add(".");
-            FKeys.Add("/");
-            FKeys.Add("CAPSLOCK");
-            FKeys.Add("F1");
-            FKeys.Add("F2");
-            FKeys.Add("F3");
-            FKeys.Add("F4");
-            FKeys.Add("F5");
-            FKeys.Add("F6");
-            FKeys.Add("F7");
-            FKeys.Add("F8");
-            FKeys.Add("F9");
-            FKeys.Add("F10");
-            FKeys.Add("F11");
-            FKeys.Add("F12");
-            FKeys.Add("PRINTSCREEN");
-            FKeys.Add("SCROLLLOCK");
-            FKeys.Add("PAUSE");
-            FKeys.Add("INSERT");
-            FKeys.Add("HOME");
-            FKeys.Add("PAGEUP");
-            FKeys.Add("DELETE");
-            FKeys.Add("END");
-            FKeys.Add("PAGEDOWN");
-            FKeys.Add("RIGHTARROW");
-            FKeys.Add("LEFTARROW");
-            FKeys.Add("DOWNARROW");
-            FKeys.Add("UPARROW");
-            FKeys.Add("NUMLOCK");
-            FKeys.Add("K/");
-            FKeys.Add("K*");
-            FKeys.Add("K-");
-            FKeys.Add("K+");
-            FKeys.Add("KENTER");
-            FKeys.Add("K1");
-            FKeys.Add("K2");
-            FKeys.Add("K3");
-            FKeys.Add("K4");
-            FKeys.Add("K5");
-            FKeys.Add("K6");
-            FKeys.Add("K7");
-            FKeys.Add("K8");
-            FKeys.Add("K9");
-            FKeys.Add("K0");
-            FKeys.Add("K.");
-            FKeys.Add("F13");
-            FKeys.Add("F14");
-            FKeys.Add("F15");
-            FKeys.Add("F16");
-            FKeys.Add("F17");
-            FKeys.Add("F18");
-            FKeys.Add("F19");
-            FKeys.Add("F20");
-            FKeys.Add("F21");
-            FKeys.Add("F22");
-            FKeys.Add("F23");
-            FKeys.Add("F24"); //115
-
-            Console.WriteLine($"KEYCODE\tKEY");
-            for (int i = 4; i < FKeys.Count; i++)
-                Console.WriteLine($"{i}\t{FKeys[i]}");
+            Console.WriteLine("[Calibración] Abriendo ventana (F12)...");
+            LaunchCalibrationWindowModal();
+            if (LoadRectCalib())
+                Console.WriteLine("Calibración cargada de calibration_rect.txt");
+            else
+                Console.WriteLine("ATENCIÓN: no se creó calibration_rect.txt");
         }
 
+        private static void TryConnectFeeders()
+        {
+            try
+            {
+                Console.WriteLine("Mouse Connecting...");
+                AbsMouseFeeder.Connect();
+                Console.WriteLine("Mouse Connected. (TetherScript)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[MouseFeeder] Connect fail:\n" + ex);
+            }
+
+            try
+            {
+                Console.WriteLine("Keyboard Connecting...");
+                KeyboardFeeder.Connect();
+                Console.WriteLine("Keyboard Connected (TetherScript).");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[KeyboardFeeder] Connect fail:\n" + ex);
+            }
+        }
+
+        private static void LoadMapping(string path)
+        {
+            AbsMouseFeeder.Mapping.Clear();
+            KeyboardFeeder.Mapping.Clear();
+
+            if (!File.Exists(path))
+            {
+                Console.WriteLine("[Mapping] mapping.txt no encontrado (se usará mapeo vacío).");
+                return;
+            }
+
+            byte lineNo = 0;
+            foreach (var raw in File.ReadAllLines(path))
+            {
+                lineNo++;
+                var line = raw.Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                if (line.StartsWith("#")) continue;
+
+                var eq = line.IndexOf('=');
+                if (eq <= 0) continue;
+
+                var left = line.Substring(0, eq).Trim();
+                var right = line.Substring(eq + 1).Trim();
+
+                var dot = left.IndexOf('.');
+                if (dot <= 0) continue;
+
+                var device = left.Substring(0, dot).ToUpperInvariant();
+                var cmd = left.Substring(dot + 1);
+
+                if (!Enum.TryParse<GunButton>(right, ignoreCase: false, out var gunBtn))
+                {
+                    Console.WriteLine($"[Mapping] Línea {lineNo}: guncommand desconocido: {right}");
+                    continue;
+                }
+
+                if (device == "MOUSE")
+                {
+                    if (cmd.Equals("Left", StringComparison.OrdinalIgnoreCase))
+                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Left;
+                    else if (cmd.Equals("Right", StringComparison.OrdinalIgnoreCase))
+                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Right;
+                    else if (cmd.Equals("Middle", StringComparison.OrdinalIgnoreCase))
+                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Middle;
+                }
+                else if (device == "KEYBOARD")
+                {
+                    if (byte.TryParse(cmd, out var keyCode))
+                        KeyboardFeeder.Mapping[gunBtn] = keyCode;
+                }
+            }
+
+            Console.WriteLine($"[Mapping] Ratón: {AbsMouseFeeder.Mapping.Count} entradas, Teclado: {KeyboardFeeder.Mapping.Count} entradas.");
+        }
+
+        private static void FailAndExit(string msg, Exception ex = null)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(msg);
+            if (ex != null) Console.WriteLine(ex);
+            Console.ResetColor();
+            Console.WriteLine("Press any key to exit.");
+            try { Console.ReadKey(true); } catch { }
+        }
+
+        private static void PrintHeader()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("GUNCON3 V0.41 - BY DANITURI (BASED ON SONIK PROJECT)");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("BUILD TAG: CALIB-FIRST v2 + feeders-guard (STRICT TS)");
+            Console.WriteLine("EXE:  " + System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
+            Console.WriteLine("BASE: " + AppDomain.CurrentDomain.BaseDirectory);
+            Console.ResetColor();
+            Console.WriteLine();
+            Console.WriteLine("4:3 inside 16:9 mode enabled");
+        }
+
+        // === Tabla completa de keycodes (4..111) ===
+        private static void PrintKeyCodes()
+        {
+            // índice = keycode
+            string[] name = new string[112];
+
+            // 4..29 letras
+            name[4] = "a"; name[5] = "b"; name[6] = "c"; name[7] = "d"; name[8] = "e"; name[9] = "f";
+            name[10] = "g"; name[11] = "h"; name[12] = "i"; name[13] = "j"; name[14] = "k"; name[15] = "l";
+            name[16] = "m"; name[17] = "n"; name[18] = "o"; name[19] = "p"; name[20] = "q"; name[21] = "r";
+            name[22] = "s"; name[23] = "t"; name[24] = "u"; name[25] = "v"; name[26] = "w"; name[27] = "x";
+            name[28] = "y"; name[29] = "z";
+
+            // 30..39 dígitos superiores
+            name[30] = "1"; name[31] = "2"; name[32] = "3"; name[33] = "4"; name[34] = "5";
+            name[35] = "6"; name[36] = "7"; name[37] = "8"; name[38] = "9"; name[39] = "0";
+
+            // especiales
+            name[40] = "ENTER";
+            name[41] = "ESCAPE";
+            name[42] = "BACKSPACE";
+            name[43] = "TAB";
+            name[44] = "SPACEBAR";
+            name[45] = "-";
+            name[46] = "=";
+            name[47] = "[";
+            name[48] = "]";
+            name[49] = "\\";
+            name[50] = "";        // (vacío, igual que el original)
+            name[51] = ";";
+            name[52] = "dummy5";  // mantenemos el texto del original
+            name[53] = "`";
+            name[54] = ",";
+            name[55] = ".";
+            name[56] = "/";
+
+            // bloqueo y F1..F12
+            name[57] = "CAPSLOCK";
+            name[58] = "F1"; name[59] = "F2"; name[60] = "F3"; name[61] = "F4"; name[62] = "F5";
+            name[63] = "F6"; name[64] = "F7"; name[65] = "F8"; name[66] = "F9"; name[67] = "F10";
+            name[68] = "F11"; name[69] = "F12";
+
+            // navegación
+            name[70] = "PRINTSCREEN";
+            name[71] = "SCROLLLOCK";
+            name[72] = "PAUSE";
+            name[73] = "INSERT";
+            name[74] = "HOME";
+            name[75] = "PAGEUP";
+            name[76] = "DELETE";
+            name[77] = "END";
+            name[78] = "PAGEDOWN";
+            name[79] = "RIGHTARROW";
+            name[80] = "LEFTARROW";
+            name[81] = "DOWNARROW";
+            name[82] = "UPARROW";
+
+            // keypad
+            name[83] = "NUMLOCK";
+            name[84] = "K/";    // keypad /
+            name[85] = "K*";    // keypad *
+            name[86] = "K-";    // keypad -
+            name[87] = "K+";    // keypad +
+            name[88] = "KENTER";
+            name[89] = "K1";
+            name[90] = "K2";
+            name[91] = "K3";
+            name[92] = "K4";
+            name[93] = "K5";
+            name[94] = "K6";
+            name[95] = "K7";
+            name[96] = "K8";
+            name[97] = "K9";
+            name[98] = "K0";
+            name[99] = "K.";
+
+            // F13..F24
+            name[100] = "F13"; name[101] = "F14"; name[102] = "F15"; name[103] = "F16";
+            name[104] = "F17"; name[105] = "F18"; name[106] = "F19"; name[107] = "F20";
+            name[108] = "F21"; name[109] = "F22"; name[110] = "F23"; name[111] = "F24";
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("KEYCODE\tKEY");
+            Console.ResetColor();
+
+            for (int i = 4; i <= 111; i++)
+            {
+                var n = name[i];
+                if (!string.IsNullOrEmpty(n))
+                    Console.WriteLine($"{i}\t{n}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("Pulsa cualquier tecla para salir…");
+            try { Console.ReadKey(true); } catch { }
+        }
     }
 }

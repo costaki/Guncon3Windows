@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using GunconUSB;
+
+// OJO: usamos SIEMPRE el enum del proyecto GunconUSB (singular)
+
 
 namespace Guncon3Console.TetherScript
 {
@@ -11,17 +12,19 @@ namespace Guncon3Console.TetherScript
     {
         private static readonly HIDController HID = new HIDController();
 
+        // Mapa: botón lógico de la gun (del enum público en GunconUSB) -> botón de ratón virtual de TetherScript
         public static readonly Dictionary<GunButton, MouseButton> Mapping = new Dictionary<GunButton, MouseButton>();
+
         public static bool Force4by3 = false;
         private static byte btns = 0;
 
         public static void Connect()
         {
-            //create the HIDController 
             HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;                //the Tetherscript vendorid
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;     //the Tetherscript Virtual Mouse Absolute Driver productid
+            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;            // VendorId TetherScript
+            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;  // ProductId Mouse Abs
             HID.Connect();
+
             if (!HID.Connected)
                 throw new Exception("Coud not connect to TetherScript's AbsMouse");
         }
@@ -32,42 +35,36 @@ namespace Guncon3Console.TetherScript
             HID.OnLog -= Log;
         }
 
-        public static void Log(object s, LogArgs e)
-        {
-            Console.WriteLine("Mouse " + e.Msg);
-        }
+        private static void Log(object s, LogArgs e) => Console.WriteLine("Mouse " + e.Msg);
 
         public static void Send_Data_To_MouseAbs(ushort x, ushort y)
         {
-            SetFeatureMouseAbs MouseAbsData = new SetFeatureMouseAbs();
-            MouseAbsData.ReportID = 1;
-            MouseAbsData.CommandCode = 2;
-            //byte btns = 0;
-            //if (left) { btns = 1; };
-            //if (right) { btns = (byte)(btns | (1 << 1)); }
-            //if (middle) { btns = (byte)(btns | (1 << 2)); }
-            MouseAbsData.Buttons = btns;  //button states are represented by the 3 least significant bits
+            var data = new SetFeatureMouseAbs
+            {
+                ReportID = 1,
+                CommandCode = 2,
+                Buttons = btns,
+                X = x,
+                Y = y
+            };
 
-            MouseAbsData.X = x;
-            MouseAbsData.Y = y;
-
-            //convert struct to buffer
-            byte[] buf = getBytesSFJ(MouseAbsData, Marshal.SizeOf(MouseAbsData));
-            //send filled buffer to driver
-            HID.SendData(buf, (uint)Marshal.SizeOf(MouseAbsData));
-
-            //if (btns != 0)
-            //    System.Threading.Thread.Sleep(0);
+            byte[] buf = StructToBytes(data, Marshal.SizeOf(data));
+            HID.SendData(buf, (uint)Marshal.SizeOf(data));
         }
 
-        //for converting a struct to byte array
-        public static byte[] getBytesSFJ(SetFeatureMouseAbs sfj, int size)
+        private static byte[] StructToBytes<T>(T value, int size) where T : struct
         {
             byte[] arr = new byte[size];
             IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(sfj, ptr, false);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
+            try
+            {
+                Marshal.StructureToPtr(value, ptr, false);
+                Marshal.Copy(ptr, arr, 0, size);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
             return arr;
         }
 
@@ -78,30 +75,27 @@ namespace Guncon3Console.TetherScript
 
             if (GunState.IsInsideScreen)
             {
-                absX = GunState.ABS_X;//(short)Helper.ConvertRange(0, 32767, 0, 32767, GunState.ABS_X);
-                absY = GunState.ABS_Y;//(short)Helper.ConvertRange(0, 32767, 0, 32767, GunState.ABS_Y);
+                absX = GunState.ABS_X;
+                absY = GunState.ABS_Y;
 
-                //set for 4:3 ratio inside widescreen resolution (for MAME)
+                // 4:3 dentro de 16:9 (MAME)
                 if (Force4by3)
                     absX = (short)Helper.ConvertRange(4096, 28671, 0, 32767, absX);
             }
 
+            // botones
             btns = 0;
-
-            foreach (var item in Mapping)
+            foreach (var map in Mapping)
             {
-                if (GunState.BtnState[item.Key])
-                {
-                    if (item.Value == MouseButton.Left)
-                        btns = 1;
-                    else if (item.Value == MouseButton.Right)
-                        btns = (byte)(btns | (1 << 1));
-                    else if (item.Value == MouseButton.Middle)
-                        btns = (byte)(btns | (1 << 2));
-                }
+                if (!GunState.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
+                    continue;
+
+                if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
+                if (map.Value == MouseButton.Right) btns = (byte)(btns | (1 << 1));
+                if (map.Value == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
             }
 
-            Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);//GunState.BTN_TRIGGER, GunState.C1, GunState.C2
+            Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);
         }
     }
 
