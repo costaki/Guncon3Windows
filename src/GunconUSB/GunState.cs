@@ -1,23 +1,37 @@
-﻿namespace GunconUSB
+﻿using System;
+using System.Collections.Generic;
+
+namespace GunconUSB
 {
-    internal static class GunState
+    public static class GunState
     {
-        public static bool BtnA;
-        public static bool BtnB;
-        public static bool BtnC;
-        public static bool Trigger;
-        public static bool Start;
-        public static bool Select;
+        // Botonera lógica
+        public static readonly Dictionary<GunButton, bool> BtnState;
 
-        public static sbyte PadX;
-        public static sbyte PadY;
+        static GunState()
+        {
+            BtnState = new Dictionary<GunButton, bool>();
+            foreach (GunButton b in Enum.GetValues(typeof(GunButton)))
+                BtnState[b] = false;
+        }
 
-        public static int PointerX;
-        public static int PointerY;
+        // Valores RAW de la gun
+        public static long ABS_RY { get; set; }
+        public static long ABS_RX { get; set; }
+        public static long ABS_HAT0Y { get; set; }
+        public static long ABS_HAT0X { get; set; }
+        public static short Z { get; set; }
+        public static short ABS_Y { get; set; }
+        public static short ABS_X { get; set; }
 
-        public static int MinX = int.MaxValue;
-        public static int MinY = int.MaxValue;
-        public static int MaxX = int.MinValue;
-        public static int MaxY = int.MinValue;
+        public static bool INDICATOR1 { get; set; }
+        public static bool INDICATOR2 { get; set; }
+
+        // Compatibilidad con el calibrador rectangular
+        public static double RAW_X { get; set; }
+        public static double RAW_Y { get; set; }
+        public static bool BTN_TRIGGER { get; set; }
+
+        public static bool IsInsideScreen => !INDICATOR2;
     }
 }

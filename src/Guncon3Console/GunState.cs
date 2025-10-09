@@ -11,12 +11,11 @@ namespace Guncon3Console
         {
             var values = Enum.GetValues(typeof(GunButton));
             BtnState = new Dictionary<GunButton, bool>(values.Length);
-
             foreach (GunButton item in values)
-                BtnState.Add(item, false);
+                BtnState[item] = false;
         }
 
-
+        // Valores que ya usaba el proyecto
         public static long ABS_RY { get; set; }
         public static long ABS_RX { get; set; }
         public static long ABS_HAT0Y { get; set; }
@@ -25,70 +24,53 @@ namespace Guncon3Console
         public static short ABS_Y { get; set; }
         public static short ABS_X { get; set; }
 
-        //public static bool BTN_TRIGGER_LAST { get; set; }
-
-        //private static bool _BTN_TRIGGER;
-        //public static bool BTN_TRIGGER
-        //{
-        //    get { return _BTN_TRIGGER; }
-        //    set
-        //    {
-        //        if (_BTN_TRIGGER != BTN_TRIGGER_LAST)
-        //            BTN_TRIGGER_LAST = _BTN_TRIGGER;
-
-        //        _BTN_TRIGGER = value;
-        //    }
-        //}
-
-
-        //public static bool A1 { get; set; }
-        //public static bool A2 { get; set; }
-        //public static bool B1 { get; set; }
-        //public static bool B2 { get; set; }
-
-
-
-        //public static bool BTN_C1_LAST { get; set; }
-
-        //private static bool _BTN_C1;
-        //public static bool C1
-        //{
-        //    get { return _BTN_C1; }
-        //    set
-        //    {
-        //        if (_BTN_C1 != BTN_C1_LAST)
-        //            BTN_C1_LAST = _BTN_C1;
-
-        //        _BTN_C1 = value;
-        //    }
-        //}
-
-
-        //public static bool BTN_C2_LAST { get; set; }
-
-        //private static bool _BTN_C2;
-        //public static bool C2
-        //{
-        //    get { return _BTN_C2; }
-        //    set
-        //    {
-        //        if (_BTN_C2 != BTN_C2_LAST)
-        //            BTN_C2_LAST = _BTN_C2;
-
-        //        _BTN_C2 = value;
-        //    }
-        //}
-
-
-
-        //public static bool A_STICK_BUTTON { get; set; }
-        //public static bool B_STICK_BUTTON { get; set; }
-
-
-
+        // Indicadores existentes
         public static bool INDICATOR1 { get; set; }
         public static bool INDICATOR2 { get; set; }
+        public static bool IsInsideScreen => !INDICATOR2;
 
-        public static bool IsInsideScreen { get { return !INDICATOR2; } }
+        // ============================
+        // NUEVO: alias compatibles
+        // ============================
+        // Para calibración queremos leer el "RAW" del dispositivo. En este driver,
+        // lo más cercano son ABS_X / ABS_Y antes de aplicar la transformación,
+        // así que exponemos RAW_X/RAW_Y como alias a esos campos.
+        public static int RAW_X
+        {
+            get => ABS_X;
+            set => ABS_X = (short)value;
+        }
+
+        public static int RAW_Y
+        {
+            get => ABS_Y;
+            set => ABS_Y = (short)value;
+        }
+
+        // Mapear el gatillo a la tabla de botones
+        public static bool BTN_TRIGGER
+        {
+            get => BtnState.TryGetValue(GunButton.Trigger, out var v) && v;
+            set => BtnState[GunButton.Trigger] = value;
+        }
+
+        // Alias adicionales por si algún código espera estos nombres
+        public static bool Trigger
+        {
+            get => BTN_TRIGGER;
+            set => BTN_TRIGGER = value;
+        }
+
+        public static int PointerX
+        {
+            get => ABS_X;
+            set => ABS_X = (short)value;
+        }
+
+        public static int PointerY
+        {
+            get => ABS_Y;
+            set => ABS_Y = (short)value;
+        }
     }
 }

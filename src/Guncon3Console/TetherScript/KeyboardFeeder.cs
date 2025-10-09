@@ -1,124 +1,168 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using GunconUSB; // <-- GunButton, GunState
 
 namespace Guncon3Console.TetherScript
 {
     static class KeyboardFeeder
     {
         private static readonly HIDController HID = new HIDController();
-        private static readonly uint FTimeout = 5000;  //approx five seconds
 
+        private static readonly uint FTimeout = 5000;
+
+        // Mapeo lógico -> keycode (los números del "keys")
         public static readonly Dictionary<GunButton, byte> Mapping = new Dictionary<GunButton, byte>();
-        private static readonly byte[] keysToSend = new byte[6];
+
+        // Último estado enviado
+        private static readonly byte[] _lastKeys = new byte[6];
+        private static bool _lastHadAny = false;
+        private static long _lastSendTicks = 0;
+        private static readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks; // ~500 Hz máx
 
         public static void Connect()
         {
             HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;                //the Tetherscript vendorid
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;     //the Tetherscript Virtual Keyboard Driver productid
+            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;
+            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
             HID.Connect();
             if (!HID.Connected)
-                throw new Exception("Coud not connect to TetherScript's Keyboard.");
+                throw new Exception("Could not connect to TetherScript Keyboard.");
+
+            Array.Clear(_lastKeys, 0, _lastKeys.Length);
+            _lastHadAny = false;
+            _lastSendTicks = 0;
         }
 
         public static void Disconnect()
         {
+            try
+            {
+                // Suelta por seguridad
+                Send(0, 0, 0, 0, 0, 0, 0, 0);
+            }
+            catch { }
             HID.Disconnect();
             HID.OnLog -= Log;
         }
 
-        public static void Log(object s, LogArgs e)
-        {
-            Console.WriteLine("Keyboard " + e.Msg);
-        }
+        private static void Log(object s, LogArgs e) => Console.WriteLine("Keyboard " + e.Msg);
 
         public static void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
         {
-            SetFeatureKeyboard KeyboardData = new SetFeatureKeyboard();
-            KeyboardData.ReportID = 1;
-            KeyboardData.CommandCode = 2;
-            KeyboardData.Timeout = FTimeout / 5; //5 because we count in blocks of 5 in the driver
-            KeyboardData.Modifier = Modifier;
-            //padding should always be zero.
-            KeyboardData.Padding = Padding;
-            KeyboardData.Key0 = Key0;
-            KeyboardData.Key1 = Key1;
-            KeyboardData.Key2 = Key2;
-            KeyboardData.Key3 = Key3;
-            KeyboardData.Key4 = Key4;
-            KeyboardData.Key5 = Key5;
-            //convert struct to buffer
-            byte[] buf = getBytesSFJ(KeyboardData, Marshal.SizeOf(KeyboardData));
-            //send filled buffer to driver
-            HID.SendData(buf, (uint)Marshal.SizeOf(KeyboardData));
+            SetFeatureKeyboard data = new SetFeatureKeyboard
+            {
+                ReportID = 1,
+                CommandCode = 2,
+                Timeout = FTimeout / 5,
+                Modifier = Modifier,
+                Padding = Padding,
+                Key0 = Key0,
+                Key1 = Key1,
+                Key2 = Key2,
+                Key3 = Key3,
+                Key4 = Key4,
+                Key5 = Key5
+            };
+
+            byte[] buf = GetBytes(data, Marshal.SizeOf(data));
+            HID.SendData(buf, (uint)buf.Length);
         }
 
         public static void Ping()
         {
-            SetFeatureKeyboard KeyboardData = new SetFeatureKeyboard();
-            KeyboardData.ReportID = 1;
-            KeyboardData.CommandCode = 3;
-            //the timeout is how long the driver will wait (milliseconds) without receiving a ping before resetting itself
-            //we'll be pinging every 200ms, and loss of ping will cause driver reset in FTimeout.  
-            //No more stuck keys requiring reboot to clear.
-            //the following fields are not used by the driver for a ping, but we'll zero them anyways
-            KeyboardData.Timeout = FTimeout / 5; //50 because we count in blocks of 50 in the driver;
-            KeyboardData.Modifier = 0;
-            KeyboardData.Padding = 0;
-            KeyboardData.Key0 = 0;
-            KeyboardData.Key1 = 0;
-            KeyboardData.Key2 = 0;
-            KeyboardData.Key3 = 0;
-            KeyboardData.Key4 = 0;
-            KeyboardData.Key5 = 0;
-            //convert struct to buffer
-            byte[] buf = getBytesSFJ(KeyboardData, Marshal.SizeOf(KeyboardData));
-            //send filled buffer to driver
-            HID.SendData(buf, (uint)Marshal.SizeOf(KeyboardData));
+            SetFeatureKeyboard data = new SetFeatureKeyboard
+            {
+                ReportID = 1,
+                CommandCode = 3,
+                Timeout = FTimeout / 5
+            };
+            byte[] buf = GetBytes(data, Marshal.SizeOf(data));
+            HID.SendData(buf, (uint)buf.Length);
         }
 
-        //for converting a struct to byte array
-        public static byte[] getBytesSFJ(SetFeatureKeyboard sfj, int size)
+        private static byte[] GetBytes(SetFeatureKeyboard sfj, int size)
         {
             byte[] arr = new byte[size];
             IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(sfj, ptr, false);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
+            try
+            {
+                Marshal.StructureToPtr(sfj, ptr, false);
+                Marshal.Copy(ptr, arr, 0, size);
+            }
+            finally { Marshal.FreeHGlobal(ptr); }
             return arr;
         }
 
+        // Mantener teclas: sin “metralleta”
         internal static void Feed()
         {
+            // Mantén vivo el driver
             Ping();
 
-            if (!Mapping.Any())
-                return;
+            if (Mapping.Count == 0) return;
 
-            //reset key data
-            for (int i = 0; i < 6; i++)
-                keysToSend[i] = 0;
-            
-            int index = 0;
-            foreach (var item in Mapping)
+            // Construye el set actual
+            byte[] current = new byte[6];
+            int idx = 0;
+
+            foreach (var kv in Mapping)
             {
-                if (index == 6)
-                    break;
-                if (GunState.BtnState[item.Key])
+                if (idx >= 6) break;
+
+                bool pressed = false;
+                try { pressed = GunState.BtnState.TryGetValue(kv.Key, out var v) && v; } catch { }
+
+                if (pressed)
                 {
-                    keysToSend[index] = item.Value;
-                    index++;
+                    byte code = kv.Value;
+
+                    bool already = false;
+                    for (int i = 0; i < idx; i++)
+                        if (current[i] == code) { already = true; break; }
+
+                    if (!already) current[idx++] = code;
                 }
             }
 
-            Send(0, 0, keysToSend[0], keysToSend[1], keysToSend[2], keysToSend[3], keysToSend[4], keysToSend[5]);
-            Thread.Sleep(1);
-            Send(0, 0, 0, 0, 0, 0, 0, 0);//reset pressed keys
+            // Ordena para comparación estable
+            for (int i = 0; i < idx - 1; i++)
+                for (int j = i + 1; j < idx; j++)
+                    if (current[j] < current[i]) { byte t = current[i]; current[i] = current[j]; current[j] = t; }
+
+            bool haveAny = idx > 0;
+
+            bool changed = (haveAny != _lastHadAny);
+            if (!changed)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    byte a = (i < idx) ? current[i] : (byte)0;
+                    if (_lastKeys[i] != a) { changed = true; break; }
+                }
+            }
+
+            long now = DateTime.UtcNow.Ticks;
+            if (!changed && (now - _lastSendTicks) < _minSendIntervalTicks)
+                return;
+
+            if (changed)
+            {
+                byte k0 = (idx > 0) ? current[0] : (byte)0;
+                byte k1 = (idx > 1) ? current[1] : (byte)0;
+                byte k2 = (idx > 2) ? current[2] : (byte)0;
+                byte k3 = (idx > 3) ? current[3] : (byte)0;
+                byte k4 = (idx > 4) ? current[4] : (byte)0;
+                byte k5 = (idx > 5) ? current[5] : (byte)0;
+
+                Send(0, 0, k0, k1, k2, k3, k4, k5);
+
+                for (int i = 0; i < 6; i++)
+                    _lastKeys[i] = (i < idx) ? current[i] : (byte)0;
+
+                _lastHadAny = haveAny;
+                _lastSendTicks = now;
+            }
         }
     }
 

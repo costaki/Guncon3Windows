@@ -1,333 +1,165 @@
 ﻿using MadWizard.WinUSBNet;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GunconUSB
 {
-    internal static class GunconReader
+    public static class GunconReader
     {
-        public static bool IsRunning { get; private set; }
-
-        public static event ProgressChangedEventHandler ProgressChanged;
-
-
-        private const int pid = 362;
-        private const int vid = 2970;
+        private const int pid = 2048;   // 0x0800
+        private const int vid = 2970;   // 0x0B9A (Namco)
         private static USBDevice device = null;
         private static readonly Guid deviceguid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
 
-        private static BackgroundWorker _workerThread = null;
+        // Clave
+        private static readonly byte[] key = new byte[] { 0x01, 0x12, 0x6f, 0x32, 0x24, 0x60, 0x17, 0x21 };
 
-        private static VJoyFeeder vjoyFeeder = new VJoyFeeder();
+        // Tabla del decode (idéntica a la que me pasaste)
+        private static readonly byte[] KEY_TABLE = new byte[]{
+            0x75, 0xC3, 0x10, 0x31, 0xB5, 0xD3, 0x69, 0x84, 0x89, 0xBA, 0xD6, 0x89, 0xBD, 0x70, 0x19, 0x8E, 0x58, 0xA8,
+            0x3D, 0x9B, 0x5D, 0xF0, 0x49, 0xE8, 0xAD, 0x9D, 0x7A, 0x0D, 0x7E, 0x24, 0xDA, 0xFC, 0x0D, 0x14, 0xC5, 0x23,
+            0x91, 0x11, 0xF5, 0xC0, 0x4B, 0xCD, 0x44, 0x1C, 0xC5, 0x21, 0xDF, 0x61, 0x54, 0xED, 0xA2, 0x81, 0xB7, 0xE5,
+            0x74, 0x94, 0xB0, 0x47, 0xEE, 0xF1, 0xA5, 0xBB, 0x21, 0xC8, 0x91, 0xFD, 0x4C, 0x8B, 0x20, 0xC1, 0x7C, 0x09, 0x58,
+            0x14, 0xF6, 0x00, 0x52, 0x55, 0xBF, 0x41, 0x75, 0xC0, 0x13, 0x30, 0xB5, 0xD0, 0x69, 0x85, 0x89, 0xBB, 0xD6, 0x88,
+            0xBC, 0x73, 0x18, 0x8D, 0x58, 0xAB, 0x3D, 0x98, 0x5C, 0xF2, 0x48, 0xE9, 0xAC, 0x9F, 0x7A, 0x0C, 0x7C, 0x25, 0xD8,
+            0xFF, 0xDC, 0x7D, 0x08, 0xDB, 0xBC, 0x18, 0x8C, 0x1D, 0xD6, 0x3C, 0x35, 0xE1, 0x2C, 0x14, 0x8E, 0x64, 0x83, 0x39,
+            0xB0, 0xE4, 0x4E, 0xF7, 0x51, 0x7B, 0xA8, 0x13, 0xAC, 0xE9, 0x43, 0xC0, 0x08, 0x25, 0x0E, 0x15, 0xC4, 0x20, 0x93,
+            0x13, 0xF5, 0xC3, 0x48, 0xCC, 0x47, 0x1C, 0xC5, 0x20, 0xDE, 0x60, 0x55, 0xEE, 0xA0, 0x40, 0xB4, 0xE7, 0x74,
+            0x95, 0xB0, 0x46, 0xEC, 0xF0, 0xA5, 0xB8, 0x23, 0xC8, 0x04, 0x06, 0xFC, 0x28, 0xCB, 0xF8, 0x17, 0x2C, 0x25, 0x1C,
+            0xCB, 0x18, 0xE3, 0x6C, 0x80, 0x85, 0xDD, 0x7E, 0x09, 0xD9, 0xBC, 0x19, 0x8F, 0x1D, 0xD4, 0x3D, 0x37, 0xE1, 0x2F,
+            0x15, 0x8D, 0x64, 0x06, 0x04, 0xFD, 0x29, 0xCF, 0xFA, 0x14, 0x2E, 0x25, 0x1F, 0xC9, 0x18, 0xE3, 0x6D, 0x81, 0x84,
+            0x80, 0x3B, 0xB1, 0xE5, 0x4D, 0xF7, 0x51, 0x78, 0xA9, 0x13, 0xAD, 0xE9, 0x80, 0xC1, 0x0B, 0x25, 0x93, 0xFC,
+            0x4D, 0x89, 0x23, 0xC2, 0x7C, 0x0B, 0x59, 0x15, 0xF6, 0x01, 0x50, 0x55, 0xBF, 0x81, 0x75, 0xC3, 0x10, 0x31, 0xB5,
+            0xD3, 0x69, 0x84, 0x89, 0xBA, 0xD6, 0x89, 0xBD, 0x70, 0x19, 0x8E, 0x58, 0xA8, 0x3D, 0x9B, 0x5D, 0xF0, 0x49,
+            0xE8, 0xAD, 0x9D, 0x7A, 0x0D, 0x7E, 0x24, 0xDA, 0xFC, 0x0D, 0x14, 0xC5, 0x23, 0x91, 0x11, 0xF5, 0xC0, 0x4B, 0xCD,
+            0x44, 0x1C, 0xC5, 0x21, 0xDF, 0x61, 0x54, 0xED, 0xA2, 0x81, 0xB7, 0xE5, 0x74, 0x94, 0xB0, 0x47, 0xEE, 0xF1,
+            0xA5, 0xBB, 0x21, 0xC8
+        };
 
-
-        private static sbyte offsetX = 0;
-        private static sbyte offsetY = 0;
-
-        private static bool enableBlink = false;
-        private static bool needToBlink = false;
-        private static int framesOutScreen = 0;
-
-        //private static sbyte _rollingMultiplier = -1;
-        //private static sbyte rollingMultiplier
-        //{
-        //    get { return _rollingMultiplier; }
-        //    set
-        //    {
-        //        _rollingMultiplier = value;
-        //        if (_rollingMultiplier < -1)
-        //            rollingMultiplier = 4;
-        //        if (_rollingMultiplier > 4)
-        //            rollingMultiplier = 4;
-        //    }
-        //}
-
-        //private static byte lastByte3 = 0;
-
-
-        public static void Start()
+        public static void Connect()
         {
-            if (_workerThread != null)
-                return;
+            var devInfo = USBDevice.GetDevices(deviceguid)
+                                   .FirstOrDefault(x => x.PID == pid && x.VID == vid);
+            if (devInfo == null)
+                throw new Exception("Guncon3 device not found");
 
-            //vjoyFeeder.initVjoyInterface();
+            device = new USBDevice(devInfo);
+        }
 
-            try
+        public static void Disconnect()
+        {
+            try { device?.Dispose(); }
+            finally { device = null; }
+        }
+
+        public static void Read()
+        {
+            if (device == null) throw new InvalidOperationException("GunconReader not connected.");
+
+            var iface = device.Interfaces[0];
+            iface.OutPipe.Write(key);
+
+            byte[] data = new byte[15];
+            int n = iface.InPipe.Read(data);
+            if (n != 15) throw new Exception("Invalid Guncon read length");
+
+            var decoded = Decode(data);
+            if (decoded == null || decoded.Count < 13)
+                throw new Exception("Guncon decode error");
+
+            // Botones principales → Diccionario
+            GunState.BtnState[GunButton.Trigger] = (decoded[11] & 0x20) != 0;
+            GunState.BtnState[GunButton.A1] = (decoded[12] & 0x04) != 0;
+            GunState.BtnState[GunButton.A2] = (decoded[12] & 0x02) != 0;
+            GunState.BtnState[GunButton.B1] = (decoded[11] & 0x04) != 0;
+            GunState.BtnState[GunButton.B2] = (decoded[11] & 0x02) != 0;
+            GunState.BtnState[GunButton.C1] = (decoded[11] & 0x80) != 0;
+            GunState.BtnState[GunButton.C2] = (decoded[12] & 0x08) != 0;
+            GunState.BtnState[GunButton.AClick] = (decoded[10] & 0x80) != 0;
+            GunState.BtnState[GunButton.BClick] = (decoded[10] & 0x40) != 0;
+
+            // Ejes/indicadores
+            GunState.ABS_RY = decoded[0];
+            GunState.ABS_RX = decoded[1];
+            GunState.ABS_HAT0Y = decoded[2];
+            GunState.ABS_HAT0X = decoded[3];
+            GunState.Z = (short)(decoded[4] * 256 + decoded[5]);
+            GunState.ABS_Y = (short)(decoded[6] * 256 + decoded[7]);
+            GunState.ABS_X = (short)(decoded[8] * 256 + decoded[9]);
+            GunState.INDICATOR1 = (decoded[11] & 0x10) != 0;
+            GunState.INDICATOR2 = (decoded[11] & 0x08) != 0;
+            // Digitalize left analog (LUp/LDown/LLeft/LRight)
+            // ABS_HAT0X / ABS_HAT0Y are 0..255 with center ~128.
+            const int DEAD = 20; // deadzone in raw units (~8%)
+            int lx = (int)GunState.ABS_HAT0X;
+            int ly = (int)GunState.ABS_HAT0Y;
+
+            bool lleft  = lx < (128 - DEAD);
+            bool lright = lx > (128 + DEAD);
+            bool lup    = ly < (128 - DEAD);
+            bool ldown  = ly > (128 + DEAD);
+
+            GunState.BtnState[GunButton.LLeft]  = lleft;
+            GunState.BtnState[GunButton.LRight] = lright;
+            GunState.BtnState[GunButton.LUp]    = lup;
+            GunState.BtnState[GunButton.LDown]  = ldown;
+
+
+            // Compatibilidad con el calibrador del EXE
+            GunState.RAW_X = GunState.ABS_X;
+            GunState.RAW_Y = GunState.ABS_Y;
+            GunState.BTN_TRIGGER = GunState.BtnState[GunButton.Trigger];
+        }
+
+        private static List<byte> Decode(byte[] data2)
+        {
+            var ret = new List<byte>();
+            if (data2 == null || data2.Length != 15) return ret;
+
+            var data = new byte[15];
+            Array.Copy(data2, data, 15);
+
+            long b_sum = data[13] ^ data[12];
+            b_sum = b_sum + data[11] + data[10] - data[9] - data[8];
+            b_sum = (b_sum ^ data[7]) & 0xFF;
+            long a_sum = data[6] ^ b_sum;
+            a_sum = a_sum - data[5] - data[4];
+            a_sum = (a_sum ^ data[3]) + data[2] + data[1] - data[0];
+            a_sum &= 0xFF;
+
+            if (a_sum != key[7]) return null;
+
+            long key_offset = key[1] ^ key[2];
+            key_offset = key_offset - key[3] - key[4];
+            key_offset = (key_offset ^ key[5]) + key[6] - key[7];
+            key_offset = (key_offset ^ data[14]) + 0x26;
+            key_offset &= 0xFF;
+
+            long key_index = 4;
+
+            for (long x = 12; x >= 0; x--)
             {
-                IsRunning = true;
+                long _byte = data[x];
 
-                var deviceInfo = USBDevice.GetDevices(deviceguid).Where(x => x.PID == pid && x.VID == vid).FirstOrDefault();
-                if (deviceInfo == null)
-                    throw new Exception("Can't find guncon2 device.");
-
-                device = new USBDevice(deviceInfo);
-                
-                // x, x, y, y, ?, mode
-                byte[] command = new byte[] { 0, 0, 0, 0, 0, 1 };
-                //byte[] command = new byte[] { 0x14, 0, 0, 0, 0, 1 };
-
-                device.ControlOut(0x21, 0x09, 0x200, 0, command);
-
-                //if (initVjoyInterface())//try to initialize vjoy
-                //    joystick.ResetVJD(id);// Reset this device to default values
-                //else
-                //    joystick = null;
-            }
-            catch (Exception ex)
-            {
-                if (device != null)
+                for (long y = 4; y > 1; y--)
                 {
-                    device.Dispose();
-                    device = null;
-                }
+                    key_offset--;
+                    long bkey = KEY_TABLE[key_offset + 0x41];
+                    long keyr = key[key_index];
+                    if (--key_index == 0) key_index = 7;
 
-                IsRunning = false;
-                ProgressChanged?.Invoke(null, null);
-                return;
-            }
-
-
-            _workerThread = new BackgroundWorker
-            {
-                WorkerReportsProgress = true,
-                WorkerSupportsCancellation = true
-            };
-
-            _workerThread.DoWork += BackgroundWorkerOnDoWork;
-            _workerThread.ProgressChanged += BackgroundWorkerOnProgressChanged;
-            _workerThread.RunWorkerCompleted += _workerThread_RunWorkerCompleted;
-            _workerThread.RunWorkerAsync();
-
-        }
-
-        public static void Stop()
-        {
-            if (_workerThread == null)
-                return;
-
-            _workerThread.CancelAsync();
-
-
-            //if (joystick != null)
-            //{
-            //    joystick.ResetVJD(id);
-            //    if (joystick.GetVJDStatus(id) == VjdStat.VJD_STAT_OWN)
-            //        joystick.RelinquishVJD(id);
-            //    joystick = null;
-            //}
-
-        }
-
-        private static void BackgroundWorkerOnDoWork(object sender, DoWorkEventArgs e)
-        {
-            BackgroundWorker worker = (BackgroundWorker)sender;
-            while (!worker.CancellationPending)
-            {
-                read();
-
-                //vjoyFeeder.Feed(true);
-
-                //if (rbMoveMouse.Checked)
-                //{
-                //    var x = GunState.PointerX;
-                //    var y = GunState.PointerY;
-                //    if (x > 0 && y > 0)
-                //    {
-                //        Rectangle resolution = Screen.PrimaryScreen.Bounds;
-                //        x = Helper.ConvertRange(GunState.MinX, GunState.MaxX, 0, resolution.Width, x);
-                //        y = Helper.ConvertRange(GunState.MinY, GunState.MaxY, 0, resolution.Height, y);
-
-                //        //var cursor = new Cursor(Cursor.Current.Handle);
-                //        Cursor.Position = new Point(x, y);
-                //        //Cursor.Clip = new Rectangle(this.Location, this.Size);
-                //    }
-                //}
-
-                //worker.ReportProgress(0, "AN OBJECT TO PASS TO THE UI-THREAD");
-                worker.ReportProgress(0);
-                Thread.Sleep(1);
-            }
-        }
-
-        private static void BackgroundWorkerOnProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            ProgressChanged?.Invoke(sender, e);
-            //object userObject = e.UserState;
-            //int percentage = e.ProgressPercentage;
-            //System.Diagnostics.Debug.WriteLine(userObject);
-        }
-
-        private static void _workerThread_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            _workerThread.DoWork -= BackgroundWorkerOnDoWork;
-            _workerThread.ProgressChanged -= BackgroundWorkerOnProgressChanged;
-            _workerThread.RunWorkerCompleted -= _workerThread_RunWorkerCompleted;
-
-            if (device != null)
-            {
-                device.Dispose();
-                device = null;
-            }
-
-            IsRunning = false;
-            _workerThread = null;
-            ProgressChanged?.Invoke(null, null);
-        }
-
-
-        public static void SetOffset(sbyte x, sbyte y)
-        {
-            offsetX = x;
-            offsetY = y;
-        }
-
-
-        private static void read()
-        {
-            //if (!timer.Enabled)
-            //    return;
-
-            USBInterface iface = device.Interfaces[0];
-
-            byte[] data = new byte[6];
-
-            //if (!timer.Enabled)
-            //    return;
-
-            int len = iface.InPipe.Read(data);
-
-            //Console.WriteLine(string.Join(", ", data));
-
-            //PrintHex(data, len);
-
-            GunState.BtnA = (data[0] & 0x08) == 0;
-            GunState.BtnB = (data[0] & 0x04) == 0;
-            GunState.BtnC = (data[0] & 0x02) == 0;
-
-            GunState.Trigger = (data[1] & 0x20) == 0;
-            GunState.Start = (data[1] & 0x80) == 0;
-            GunState.Select = (data[1] & 0x40) == 0;
-
-            //HAT
-            if ((data[0] & 0x10) == 0)
-                GunState.PadX = -1;
-            else if ((data[0] & 0x40) == 0)
-                GunState.PadX = 1;
-            else
-                GunState.PadX = 0;
-
-            if ((data[0] & 0x80) == 0)
-                GunState.PadY = -1;
-            else if ((data[0] & 0x20) == 0)
-                GunState.PadY = 1;
-            else
-                GunState.PadY = 0;
-
-            if (needToBlink)
-            {
-                GammaManager.SetBrightness(255);
-                Thread.Sleep(40);
-                len = iface.InPipe.Read(data);
-                GammaManager.RestoreBrightness();
-                Thread.Sleep(2);
-                needToBlink = false;
-            }
-            else
-            {
-                if (GunState.Trigger && enableBlink)
-                    needToBlink = true;
-            }
-
-
-            //System.Diagnostics.Debug.WriteLine(data[0] & 0x10);
-
-            uint gunX;
-            gunX = data[3];
-            gunX <<= 8;
-            gunX |= data[2];
-
-
-            uint gunY;
-            gunY = data[5];
-            gunY <<= 8;
-            gunY |= data[4];
-
-            var lastPointerX = GunState.PointerX;
-            
-            GunState.PointerX = (int)gunX;
-            GunState.PointerY = (int)gunY;
-
-            System.Diagnostics.Debug.WriteLine($"{data[4]}\t{data[5]}");
-            //System.Diagnostics.Debug.WriteLine($"{data[2]} {data[3]}");
-            //System.Diagnostics.Debug.WriteLine("--------------------");
-
-            //if (true)//tentative to fix rolling x problem
-            //{
-            //    if (data[3] != lastByte3)
-            //    {
-            //        if (data[3] > lastByte3)
-            //        {
-            //            if (data[3] == 2 && lastByte3 == 0)
-            //                rollingMultiplier--;
-            //            else
-            //                rollingMultiplier++;
-            //        }
-            //        else
-            //        {
-            //            if (data[3] == 0 && lastByte3 == 2)
-            //                rollingMultiplier++;
-            //            else
-            //                rollingMultiplier--;
-            //        }
-            //        GunState.PointerX = data[2] + (255 * rollingMultiplier);
-            //    }
-            //    else
-            //    {
-            //        if (data[2] == 1 && data[3] == 0)
-            //            GunState.PointerX = 0;
-            //        else if (rollingMultiplier != -1)
-            //            GunState.PointerX = data[2] + (255 * rollingMultiplier);
-            //    }
-            //    lastByte3 = data[3];
-            //}
-
-
-            if (GunState.PointerX > 10)
-                GunState.MinX = Math.Min(GunState.MinX, GunState.PointerX);
-            if (GunState.PointerY > 5)
-                GunState.MinY = Math.Min(GunState.MinY, GunState.PointerY);
-
-            if (GunState.PointerX == 0 && GunState.PointerY > 0)
-            {
-                framesOutScreen++;
-                if (framesOutScreen > -1)
-                {
-                    if (framesOutScreen < 10)
+                    switch (bkey & 3)
                     {
-                        GunState.PointerX = lastPointerX;
-                    }
-                    else//out of screen
-                    {
-                        //lastByte3 = 0;
-                        //rollingMultiplier = -1;
+                        case 0: _byte = (_byte - bkey) - keyr; break;
+                        case 1: _byte = (_byte + bkey) + keyr; break;
+                        default: _byte = (_byte ^ bkey) ^ keyr; break;
                     }
                 }
-            }
-            else
-            {
-                framesOutScreen = -1;
+                ret.Add((byte)_byte);
             }
 
-            GunState.MaxX = Math.Max(GunState.MaxX, GunState.PointerX);
-            GunState.MaxY = Math.Max(GunState.MaxY, GunState.PointerY);
-
-            GunState.PointerX += offsetX;
-            GunState.PointerY += offsetY;
+            return ret;
         }
     }
 }

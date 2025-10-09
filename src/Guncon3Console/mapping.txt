@@ -3,11 +3,17 @@
 #device can be KEYBOARD or MOUSE
 #keyboard command must be the keycode. Run program with [keys] argument to display suported keycodes
 #mouse command can be Left, Right, Middle
-#guncommand can be Trigger, A1, A2, B1, B2, C1, C2, AClick, BClick
+#guncommand can be Trigger, A1, A2, B1, B2, C1, C2, AClick, BClick, LUp, LDown, LLeft, LRight
 #values are CASE SENSITIVE
 
-KEYBOARD.30=B1
-KEYBOARD.34=B2
+KEYBOARD.30=C1
+KEYBOARD.34=C2
 MOUSE.Left=Trigger
-MOUSE.Right=C1
-MOUSE.Middle=C2
+MOUSE.Right=A1
+KEYBOARD.37=A2
+KEYBOARD.38=B1
+MOUSE.Middle=B2
+KEYBOARD.82=LUp     
+KEYBOARD.81=LDown   
+KEYBOARD.80=LLeft    
+KEYBOARD.79=LRight   

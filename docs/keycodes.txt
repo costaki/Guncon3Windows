@@ -1,0 +1,126 @@
+====================================
+ Guncon3Windows - Keycode Reference
+====================================
+
+This file lists all supported keycodes recognized by Guncon3Console.exe
+when used for input mapping (in mapping.txt).
+
+Usage example in mapping.txt:
+  KEYBOARD.30 = C1
+  MOUSE.Left  = Trigger
+
+You can also run the program manually with:
+  Guncon3Console.exe keys
+to print this same list on screen.
+
+------------------------------------------------------------
+ KEYCODE   KEY
+------------------------------------------------------------
+4          A
+5          B
+6          C
+7          D
+8          E
+9          F
+10         G
+11         H
+12         I
+13         J
+14         K
+15         L
+16         M
+17         N
+18         O
+19         P
+20         Q
+21         R
+22         S
+23         T
+24         U
+25         V
+26         W
+27         X
+28         Y
+29         Z
+30         1
+31         2
+32         3
+33         4
+34         5
+35         6
+36         7
+37         8
+38         9
+39         0
+40         ENTER
+41         ESCAPE
+42         BACKSPACE
+43         TAB
+44         SPACEBAR
+45         -
+46         =
+47         [
+48         ]
+49         \
+51         ;
+52         dummy5
+53         `
+54         ,
+55         .
+56         /
+57         CAPSLOCK
+58         F1
+59         F2
+60         F3
+61         F4
+62         F5
+63         F6
+64         F7
+65         F8
+66         F9
+67         F10
+68         F11
+69         F12
+70         PRINTSCREEN
+71         SCROLLLOCK
+72         PAUSE
+73         INSERT
+74         HOME
+75         PAGEUP
+76         DELETE
+77         END
+78         PAGEDOWN
+79         RIGHTARROW
+80         LEFTARROW
+81         DOWNARROW
+82         UPARROW
+83         NUMLOCK
+84         K/
+85         K*
+86         K-
+87         K+
+88         KENTER
+89         K1
+90         K2
+91         K3
+92         K4
+93         K5
+94         K6
+95         K7
+96         K8
+97         K9
+98         K0
+99         K.
+100        F13
+101        F14
+102        F15
+103        F16
+104        F17
+105        F18
+106        F19
+107        F20
+108        F21
+109        F22
+110        F23
+111        F24
+------------------------------------------------------------

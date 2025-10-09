@@ -1,7 +1,0 @@
-RawMinX=-13576
-RawMaxX=15646
-RawMinY=-19032
-RawMaxY=-3150
-ScreenW=2560
-ScreenH=1440
-InvertY=1
