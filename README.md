@@ -16,7 +16,7 @@ This version is **ready to use out of the box** — no manual setup or coding re
 ## Features
 - 🔧 **Automatic calibration on first launch**
 - 🎯 **Hot recalibration** anytime with **F12**
-- 🧭 **Five-point precision system** (four corners + center)
+- 🧭 **Five-point calibration system** (four corners + center)
 - 🎮 **Digitalized analog stick** (LUp / LDown / LLeft / LRight)
 - 🖱️ **RawInput / tether feeders**
 - 💾 **Local configuration files** (`mapping.txt`, `calibration_rect.txt`)
