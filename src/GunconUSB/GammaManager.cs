@@ -65,7 +65,7 @@ namespace GunconUSB
             //if (brightness < 0)
             //    brightness = 0;
 
-            short* gArray = stackalloc short[3 * 256];
+            //short* gArray = stackalloc short[3 * 256];
             //short* idx = gArray;
 
             //for (int j = 0; j < 3; j++)

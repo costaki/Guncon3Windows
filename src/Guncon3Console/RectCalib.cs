@@ -52,16 +52,18 @@ namespace Guncon3Console
             if (path == null)
                 path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "calibration_rect.txt");
 
-            using var sw = new StreamWriter(path, false);
-            var ci = CultureInfo.InvariantCulture;
+            using (var sw = new StreamWriter(path, false))
+            {
+                var ci = CultureInfo.InvariantCulture;
 
-            sw.WriteLine("RawMinX=" + RawMinX.ToString("R", ci));
-            sw.WriteLine("RawMaxX=" + RawMaxX.ToString("R", ci));
-            sw.WriteLine("RawMinY=" + RawMinY.ToString("R", ci));
-            sw.WriteLine("RawMaxY=" + RawMaxY.ToString("R", ci));
-            sw.WriteLine("ScreenW=" + ScreenW.ToString(ci));
-            sw.WriteLine("ScreenH=" + ScreenH.ToString(ci));
-            sw.WriteLine("InvertY=" + (InvertY ? "1" : "0"));
+                sw.WriteLine("RawMinX=" + RawMinX.ToString("R", ci));
+                sw.WriteLine("RawMaxX=" + RawMaxX.ToString("R", ci));
+                sw.WriteLine("RawMinY=" + RawMinY.ToString("R", ci));
+                sw.WriteLine("RawMaxY=" + RawMaxY.ToString("R", ci));
+                sw.WriteLine("ScreenW=" + ScreenW.ToString(ci));
+                sw.WriteLine("ScreenH=" + ScreenH.ToString(ci));
+                sw.WriteLine("InvertY=" + (InvertY ? "1" : "0"));
+            }
         }
 
         /// <summary>Carga desde calibration_rect.txt. Devuelve null si no existe o está mal.</summary>
