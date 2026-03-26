@@ -32,28 +32,95 @@ namespace GunconUSB
             public UInt16[] Blue;
         }
 
-        private static bool initialized = false;
-        private static Int32 hdc;
-
-        private static RAMP originalRamp = new RAMP();
-
-        private static void InitializeClass()
+        private sealed class Session : IDisposable
         {
-            if (initialized)
-                return;
-            hdc = Graphics.FromHwnd(IntPtr.Zero).GetHdc().ToInt32();
+            private bool _initialized;
+            private IntPtr _hdc;
+            private RAMP _originalRamp;
 
-            GetDeviceGammaRamp(hdc, ref originalRamp);
+            public void EnsureInitialized()
+            {
+                if (_initialized) return;
 
-            initialized = true;
+                using (var g = Graphics.FromHwnd(IntPtr.Zero))
+                {
+                    _hdc = g.GetHdc();
+                    _originalRamp = new RAMP
+                    {
+                        Red = new ushort[256],
+                        Green = new ushort[256],
+                        Blue = new ushort[256]
+                    };
+                    GetDeviceGammaRamp(_hdc.ToInt32(), ref _originalRamp);
+                }
+
+                _initialized = true;
+            }
+
+            public bool RestoreBrightness()
+            {
+                if (!_initialized) return false;
+                return SetDeviceGammaRamp(_hdc.ToInt32(), ref _originalRamp);
+            }
+
+            public unsafe bool SetBrightness(short brightness)
+            {
+                EnsureInitialized();
+
+                if (brightness > 255) brightness = 255;
+                if (brightness < 0) brightness = 0;
+
+                short* gArray = stackalloc short[3 * 256];
+                short* idx = gArray;
+
+                for (int j = 0; j < 3; j++)
+                {
+                    for (int i = 0; i < 256; i++)
+                    {
+                        int arrayVal = i * (brightness + 128);
+                        if (arrayVal > 65535) arrayVal = 65535;
+                        *idx = (short)arrayVal;
+                        idx++;
+                    }
+                }
+
+                return SetDeviceGammaRamp(_hdc.ToInt32(), gArray);
+            }
+
+            public void Dispose()
+            {
+                // Nothing to dispose: Graphics is scoped within EnsureInitialized.
+                _hdc = IntPtr.Zero;
+            }
+        }
+
+        private static readonly object _lock = new object();
+        private static Session _shared;
+
+        private static Session Shared
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    if (_shared == null)
+                        _shared = new Session();
+                    return _shared;
+                }
+            }
         }
 
         public static unsafe bool GetBrightness()
         {
-            InitializeClass();
+            Shared.EnsureInitialized();
 
-            RAMP r = new RAMP();
-            GetDeviceGammaRamp(hdc, ref r);
+            RAMP r = new RAMP
+            {
+                Red = new ushort[256],
+                Green = new ushort[256],
+                Blue = new ushort[256]
+            };
+            GetDeviceGammaRamp(((Int32)typeof(Session).GetField("_hdc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(Shared)), ref r);
             var aaaa = Color.FromArgb(r.Red[1], r.Green[1], r.Blue[1]);
             return true;
 
@@ -93,43 +160,21 @@ namespace GunconUSB
 
         public static unsafe bool RestoreBrightness()
         {
-            if (!initialized)
-                return false;
-
-            bool retVal = SetDeviceGammaRamp(hdc, ref originalRamp);
-            return retVal;
+            return Shared.RestoreBrightness();
         }
 
         public static unsafe bool SetBrightness(short brightness)
         {
-            InitializeClass();
+            return Shared.SetBrightness(brightness);
+        }
 
-            if (brightness > 255)
-                brightness = 255;
-
-            if (brightness < 0)
-                brightness = 0;
-
-            short* gArray = stackalloc short[3 * 256];
-            short* idx = gArray;
-
-            for (int j = 0; j < 3; j++)
-            {
-                for (int i = 0; i < 256; i++)
-                {
-                    int arrayVal = i * (brightness + 128);
-
-                    if (arrayVal > 65535)
-                        arrayVal = 65535;
-
-                    *idx = (short)arrayVal;
-                    idx++;
-                }
-            }
-
-            bool retVal = SetDeviceGammaRamp(hdc, gArray);
-
-            return retVal;
+        public static IDisposable BeginSession(out Func<short, bool> setBrightness, out Func<bool> restoreBrightness)
+        {
+            var s = new Session();
+            s.EnsureInitialized();
+            setBrightness = s.SetBrightness;
+            restoreBrightness = s.RestoreBrightness;
+            return s;
         }
 
     }

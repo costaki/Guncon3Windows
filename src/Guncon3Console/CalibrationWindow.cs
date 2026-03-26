@@ -12,6 +12,13 @@ namespace Guncon3Console
     {
         private readonly WinFormsTimer _poll;
         private readonly List<(double X, double Y)> _rawPoints = new List<(double X, double Y)>();
+        private readonly string _savePath;
+        private readonly string _label;
+        private readonly GunconDevice _device;
+        private readonly bool _ownsDevice;
+        private readonly Dictionary<GunButton, bool> _btn = new Dictionary<GunButton, bool>();
+        private short _absX;
+        private short _absY;
         private PointF[] _targets = Array.Empty<PointF>();
         private int _idx = 0;
         private bool _prevTrig = false;
@@ -19,8 +26,24 @@ namespace Guncon3Console
         private bool _checking = false;
         private RectCalib _rectForCheck = null;
 
-        public CalibrationWindow()
+        public CalibrationWindow() : this(null, null, null)
         {
+        }
+
+        public CalibrationWindow(string savePath) : this(savePath, null, null)
+        {
+        }
+
+        public CalibrationWindow(string savePath, string label) : this(savePath, label, null)
+        {
+        }
+
+        public CalibrationWindow(string savePath, string label, GunconDevice device)
+        {
+            _savePath = savePath;
+            _label = label;
+            _device = device;
+            _ownsDevice = false;
             FormBorderStyle = FormBorderStyle.None;
             WindowState = FormWindowState.Maximized;
             Bounds = Screen.PrimaryScreen.Bounds;
@@ -42,11 +65,36 @@ namespace Guncon3Console
             RebuildTargets();
             Resize += (_, __) => { RebuildTargets(); Invalidate(); };
 
-            try { GunconReader.Connect(); } catch { }
+            if (_device == null)
+                throw new ArgumentNullException(nameof(device), "CalibrationWindow requires a GunconDevice.");
 
             _poll = new WinFormsTimer { Interval = 16 };
             _poll.Tick += PollTick;
             _poll.Start();
+
+            FormClosed += (_, __) =>
+            {
+                try { _poll?.Stop(); } catch { }
+                try { _poll?.Dispose(); } catch { }
+                if (_ownsDevice)
+                {
+                    try { _device?.Dispose(); } catch { }
+                }
+            };
+        }
+
+        private void ReadGunSafe()
+        {
+            try
+            {
+                _device.ReadInto(_btn, out _absX, out _absY, out var _);
+            }
+            catch { }
+        }
+
+        private bool IsDown(GunButton b)
+        {
+            return _btn.TryGetValue(b, out var v) && v;
         }
 
         private void CalibrationWindow_MouseDown(object sender, MouseEventArgs e)
@@ -65,12 +113,12 @@ namespace Guncon3Console
 
         private void CapturePointSafe()
         {
-            try { GunconReader.Read(); } catch { }
+            ReadGunSafe();
 
             try
             {
-                double rawX = GunState.ABS_X;
-                double rawY = GunState.ABS_Y;
+                double rawX = _absX;
+                double rawY = _absY;
                 CapturePoint(rawX, rawY);
             }
             catch (Exception ex) { DumpError("cal_capture_error.txt", ex); }
@@ -78,12 +126,12 @@ namespace Guncon3Console
 
         private void PollTick(object sender, EventArgs e)
         {
-            try { GunconReader.Read(); } catch { }
+            ReadGunSafe();
 
             if (_checking)
             {
-                bool a1 = GunState.BtnState.TryGetValue(GunButton.A1, out var v1) && v1;
-                bool c2 = GunState.BtnState.TryGetValue(GunButton.C2, out var v2) && v2;
+                bool a1 = IsDown(GunButton.A1);
+                bool c2 = IsDown(GunButton.C2);
 
                 if (!_prevA1 && a1)
                 {
@@ -104,12 +152,15 @@ namespace Guncon3Console
             }
             else
             {
-                bool t = GunState.BtnState.TryGetValue(GunButton.Trigger, out var trig) && trig;
-                if (!_prevTrig && t)
+                bool t = IsDown(GunButton.Trigger);
+                bool ac = IsDown(GunButton.AClick);
+                bool bc = IsDown(GunButton.BClick);
+                bool capture = t || ac || bc;
+                if (!_prevTrig && capture)
                 {
-                    CapturePoint(GunState.ABS_X, GunState.ABS_Y);
+                    CapturePoint(_absX, _absY);
                 }
-                _prevTrig = t;
+                _prevTrig = capture;
             }
 
             Invalidate();
@@ -170,7 +221,7 @@ namespace Guncon3Console
                     InvertY = true
                 };
 
-                rc.Save();
+                rc.Save(_savePath);
 
                 _rectForCheck = rc;
                 _checking = true;
@@ -195,15 +246,22 @@ namespace Guncon3Console
             {
                 if (!_checking)
                 {
+                    if (!string.IsNullOrWhiteSpace(_label))
+                    {
+                        using (var f2 = new Font(FontFamily.GenericSansSerif, 26f, FontStyle.Bold))
+                        using (var b2 = new SolidBrush(Color.Yellow))
+                            g.DrawString(_label, f2, b2, new PointF(20, 110));
+                    }
+
                     g.DrawString("SHOOT THE MARK (5 POINTS). ESC = cancel / Space = capture", f, b, new PointF(20, 20));
                     g.DrawString("Progress: " + Math.Min(_idx + 1, 5) + "/5", f, b, new PointF(20, 46));
 
                     string rawLine = "RAW: X=0 Y=0 TRIG=off";
                     try
                     {
-                        double px = GunState.ABS_X;
-                        double py = GunState.ABS_Y;
-                        string trig = (GunState.BtnState.TryGetValue(GunButton.Trigger, out var t) && t) ? "ON" : "off";
+                        double px = _absX;
+                        double py = _absY;
+                        string trig = IsDown(GunButton.Trigger) ? "ON" : "off";
                         rawLine = $"RAW: X={px} Y={py} TRIG={trig}";
                     }
                     catch { }
@@ -215,10 +273,17 @@ namespace Guncon3Console
                 }
                 else
                 {
+                    if (!string.IsNullOrWhiteSpace(_label))
+                    {
+                        using (var f2 = new Font(FontFamily.GenericSansSerif, 26f, FontStyle.Bold))
+                        using (var b2 = new SolidBrush(Color.Yellow))
+                            g.DrawString(_label, f2, b2, new PointF(20, 70));
+                    }
+
                     g.DrawString("CHECK CALIBRATION — A1 = recalibrate | C2 = save & exit", f, b, new PointF(20, 20));
 
-                    double rx = GunState.ABS_X;
-                    double ry = GunState.ABS_Y;
+                    double rx = _absX;
+                    double ry = _absY;
                     var (px, py) = _rectForCheck.Map(rx, ry);
 
                     DrawCrosshair(g, (float)px, (float)py);

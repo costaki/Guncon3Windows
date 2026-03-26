@@ -4,6 +4,7 @@ using System.IO;
 
 namespace Guncon3Console
 {
+    using System.Collections.Generic;
     /// <summary>
     /// Minimal rectangular calibration: maps RAW_X/RAW_Y (gun raw range)
     /// into screen space (0..ScreenW-1, 0..ScreenH-1).
@@ -17,6 +18,7 @@ namespace Guncon3Console
         public int ScreenW { get; set; }
         public int ScreenH { get; set; }
         public bool InvertY { get; set; }
+        public string CalibrationFile { get; set; }
 
         /// <summary>Has valid ranges and a valid screen size?</summary>
         public bool IsValid()
@@ -50,7 +52,7 @@ namespace Guncon3Console
         public void Save(string path = null)
         {
             if (path == null)
-                path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "calibration_rect.txt");
+                path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibrationFile ?? "calibration_rect.txt");
 
             using (var sw = new StreamWriter(path, false))
             {
@@ -81,6 +83,7 @@ namespace Guncon3Console
             foreach (var rawLine in File.ReadAllLines(path))
             {
                 var line = rawLine?.Trim();
+                if (line.StartsWith("KEYBOARD")) continue; // Skip keyboard mappings
                 if (string.IsNullOrEmpty(line) || line.StartsWith("#"))
                     continue;
 
@@ -102,6 +105,7 @@ namespace Guncon3Console
                 }
             }
 
+            // Add support for per-gun calibration files
             return rc.IsValid() ? rc : null;
         }
     }

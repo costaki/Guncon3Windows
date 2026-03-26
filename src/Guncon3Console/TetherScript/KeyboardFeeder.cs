@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using GunconUSB; // <-- GunButton, GunState
+using GunconUSB; // <-- GunButton
 
 namespace Guncon3Console.TetherScript
 {
@@ -97,6 +97,14 @@ namespace Guncon3Console.TetherScript
         // Hold keys: no "machine-gun" repeats
         internal static void Feed()
         {
+            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
+
+        }
+
+        internal static void Feed(IGunState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+
             // Keep the driver alive
             Ping();
 
@@ -110,9 +118,7 @@ namespace Guncon3Console.TetherScript
             {
                 if (idx >= 6) break;
 
-                bool pressed = false;
-                try { pressed = GunState.BtnState.TryGetValue(kv.Key, out var v) && v; } catch { }
-
+                bool pressed = state.BtnState.TryGetValue(kv.Key, out var v) && v;
                 if (pressed)
                 {
                     byte code = kv.Value;

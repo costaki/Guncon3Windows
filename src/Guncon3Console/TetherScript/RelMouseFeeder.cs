@@ -43,11 +43,16 @@ namespace Guncon3Console.TetherScript
 
         internal static void Feed()
         {
+            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
+        }
+
+        internal static void Feed(IGunState state)
+        {
             // Buttons
             _btns = 0;
             foreach (var map in Mapping)
             {
-                if (!GunState.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
+                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
                 if (map.Value == MouseButton.Left) _btns = (byte)(_btns | 1);
@@ -56,13 +61,13 @@ namespace Guncon3Console.TetherScript
             }
 
             // If outside screen, send zero delta but still update buttons.
-            short absX = GunState.IsInsideScreen ? GunState.ABS_X : (short)0;
-            short absY = GunState.IsInsideScreen ? GunState.ABS_Y : (short)0;
+            short absX = state.IsInsideScreen ? state.ABS_X : (short)0;
+            short absY = state.IsInsideScreen ? state.ABS_Y : (short)0;
 
             short dx = 0;
             short dy = 0;
 
-            if (_haveLast && GunState.IsInsideScreen)
+            if (_haveLast && state.IsInsideScreen)
             {
                 dx = (short)(absX - _lastAbsX);
                 dy = (short)(absY - _lastAbsY);

@@ -70,13 +70,18 @@ namespace Guncon3Console.TetherScript
 
         internal static void Feed()
         {
+            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
+        }
+
+        internal static void Feed(IGunState state)
+        {
             short absX = 0;
             short absY = 0;
 
-            if (GunState.IsInsideScreen)
+            if (state.IsInsideScreen)
             {
-                absX = GunState.ABS_X;
-                absY = GunState.ABS_Y;
+                absX = state.ABS_X;
+                absY = state.ABS_Y;
 
                 // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
@@ -87,7 +92,7 @@ namespace Guncon3Console.TetherScript
             btns = 0;
             foreach (var map in Mapping)
             {
-                if (!GunState.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
+                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
                 if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
@@ -98,6 +103,16 @@ namespace Guncon3Console.TetherScript
             Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);
         }
     }
+
+    internal interface IGunState
+    {
+        Dictionary<GunButton, bool> BtnState { get; }
+        short ABS_X { get; }
+        short ABS_Y { get; }
+        bool IsInsideScreen { get; }
+    }
+
+    // Legacy GunStateView removed: global GunState has been deleted for multigun safety.
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SetFeatureMouseAbs
