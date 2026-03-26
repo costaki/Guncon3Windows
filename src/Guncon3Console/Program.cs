@@ -25,6 +25,13 @@ namespace Guncon3Console
                 return;
             }
 
+            // === "dump-hid": dump present HID devices (helps verify multiple TetherScript instances) and exit ===
+            if (args.Length > 0 && args[0].Equals("dump-hid", StringComparison.OrdinalIgnoreCase))
+            {
+                new HIDController().DumpTetherscriptCandidates();
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
