@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB;
 
-// OJO: usamos SIEMPRE el enum del proyecto GunconUSB (singular)
+// Important: always use the enum from the GunconUSB project (singular)
 
 
 namespace Guncon3Console.TetherScript
@@ -12,7 +12,7 @@ namespace Guncon3Console.TetherScript
     {
         private static readonly HIDController HID = new HIDController();
 
-        // Mapa: botón lógico de la gun (del enum público en GunconUSB) -> botón de ratón virtual de TetherScript
+        // Map: logical gun button (public enum in GunconUSB) -> TetherScript virtual mouse button
         public static readonly Dictionary<GunButton, MouseButton> Mapping = new Dictionary<GunButton, MouseButton>();
 
         public static bool Force4by3 = false;
@@ -78,12 +78,12 @@ namespace Guncon3Console.TetherScript
                 absX = GunState.ABS_X;
                 absY = GunState.ABS_Y;
 
-                // 4:3 dentro de 16:9 (MAME)
+                // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
                     absX = (short)Helper.ConvertRange(4096, 28671, 0, 32767, absX);
             }
 
-            // botones
+            // buttons
             btns = 0;
             foreach (var map in Mapping)
             {

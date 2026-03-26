@@ -12,10 +12,10 @@ namespace GunconUSB
         private static USBDevice device = null;
         private static readonly Guid deviceguid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
 
-        // Clave
+        // Key
         private static readonly byte[] key = new byte[] { 0x01, 0x12, 0x6f, 0x32, 0x24, 0x60, 0x17, 0x21 };
 
-        // Tabla del decode (idéntica a la que me pasaste)
+        // Decode table
         private static readonly byte[] KEY_TABLE = new byte[]{
             0x75, 0xC3, 0x10, 0x31, 0xB5, 0xD3, 0x69, 0x84, 0x89, 0xBA, 0xD6, 0x89, 0xBD, 0x70, 0x19, 0x8E, 0x58, 0xA8,
             0x3D, 0x9B, 0x5D, 0xF0, 0x49, 0xE8, 0xAD, 0x9D, 0x7A, 0x0D, 0x7E, 0x24, 0xDA, 0xFC, 0x0D, 0x14, 0xC5, 0x23,
@@ -68,7 +68,7 @@ namespace GunconUSB
             if (decoded == null || decoded.Count < 13)
                 throw new Exception("Guncon decode error");
 
-            // Botones principales → Diccionario
+            // Main buttons -> dictionary
             GunState.BtnState[GunButton.Trigger] = (decoded[11] & 0x20) != 0;
             GunState.BtnState[GunButton.A1] = (decoded[12] & 0x04) != 0;
             GunState.BtnState[GunButton.A2] = (decoded[12] & 0x02) != 0;
@@ -79,7 +79,7 @@ namespace GunconUSB
             GunState.BtnState[GunButton.AClick] = (decoded[10] & 0x80) != 0;
             GunState.BtnState[GunButton.BClick] = (decoded[10] & 0x40) != 0;
 
-            // Ejes/indicadores
+            // Axes/indicators
             GunState.ABS_RY = decoded[0];
             GunState.ABS_RX = decoded[1];
             GunState.ABS_HAT0Y = decoded[2];
@@ -106,7 +106,7 @@ namespace GunconUSB
             GunState.BtnState[GunButton.LDown]  = ldown;
 
 
-            // Compatibilidad con el calibrador del EXE
+            // Compatibility with the EXE calibrator
             GunState.RAW_X = GunState.ABS_X;
             GunState.RAW_Y = GunState.ABS_Y;
             GunState.BTN_TRIGGER = GunState.BtnState[GunButton.Trigger];

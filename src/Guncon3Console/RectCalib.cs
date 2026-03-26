@@ -5,8 +5,8 @@ using System.IO;
 namespace Guncon3Console
 {
     /// <summary>
-    /// Calibración rectangular mínima: mapea RAW_X/RAW_Y (rango bruto de la pistola)
-    /// al espacio de pantalla (0..ScreenW-1, 0..ScreenH-1).
+    /// Minimal rectangular calibration: maps RAW_X/RAW_Y (gun raw range)
+    /// into screen space (0..ScreenW-1, 0..ScreenH-1).
     /// </summary>
     public class RectCalib
     {
@@ -18,7 +18,7 @@ namespace Guncon3Console
         public int ScreenH { get; set; }
         public bool InvertY { get; set; }
 
-        /// <summary>¿Tiene rangos válidos y tamaño de pantalla correcto?</summary>
+        /// <summary>Has valid ranges and a valid screen size?</summary>
         public bool IsValid()
         {
             return RawMaxX > RawMinX &&
@@ -26,7 +26,7 @@ namespace Guncon3Console
                    ScreenW > 0 && ScreenH > 0;
         }
 
-        /// <summary>Mapea un punto RAW al espacio de pantalla.</summary>
+        /// <summary>Maps a RAW point into screen space.</summary>
         public (double X, double Y) Map(double rawX, double rawY)
         {
             if (!IsValid())
@@ -46,7 +46,7 @@ namespace Guncon3Console
             return (sx, sy);
         }
 
-        /// <summary>Guarda en calibration_rect.txt (junto al EXE por defecto).</summary>
+        /// <summary>Saves to calibration_rect.txt (next to the EXE by default).</summary>
         public void Save(string path = null)
         {
             if (path == null)
@@ -66,7 +66,7 @@ namespace Guncon3Console
             }
         }
 
-        /// <summary>Carga desde calibration_rect.txt. Devuelve null si no existe o está mal.</summary>
+        /// <summary>Loads from calibration_rect.txt. Returns null if missing or invalid.</summary>
         public static RectCalib Load(string path = null)
         {
             if (path == null)

@@ -11,10 +11,10 @@ namespace Guncon3Console.TetherScript
 
         private static readonly uint FTimeout = 5000;
 
-        // Mapeo lógico -> keycode (los números del "keys")
+        // Logical mapping -> keycode (numbers from "keys")
         public static readonly Dictionary<GunButton, byte> Mapping = new Dictionary<GunButton, byte>();
 
-        // Último estado enviado
+        // Last sent state
         private static readonly byte[] _lastKeys = new byte[6];
         private static bool _lastHadAny = false;
         private static long _lastSendTicks = 0;
@@ -38,7 +38,7 @@ namespace Guncon3Console.TetherScript
         {
             try
             {
-                // Suelta por seguridad
+                // Release keys for safety
                 Send(0, 0, 0, 0, 0, 0, 0, 0);
             }
             catch { }
@@ -94,15 +94,15 @@ namespace Guncon3Console.TetherScript
             return arr;
         }
 
-        // Mantener teclas: sin “metralleta”
+        // Hold keys: no "machine-gun" repeats
         internal static void Feed()
         {
-            // Mantén vivo el driver
+            // Keep the driver alive
             Ping();
 
             if (Mapping.Count == 0) return;
 
-            // Construye el set actual
+            // Build current set
             byte[] current = new byte[6];
             int idx = 0;
 
@@ -125,7 +125,7 @@ namespace Guncon3Console.TetherScript
                 }
             }
 
-            // Ordena para comparación estable
+            // Sort for stable comparison
             for (int i = 0; i < idx - 1; i++)
                 for (int j = i + 1; j < idx; j++)
                     if (current[j] < current[i]) { byte t = current[i]; current[i] = current[j]; current[j] = t; }

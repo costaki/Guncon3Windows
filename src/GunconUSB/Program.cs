@@ -14,39 +14,39 @@ namespace Guncon3Calibration
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Creamos la ventana de calibración
+            // Create the calibration window
             var form = new Form1();
 
             if (args != null && args.Length > 0)
             {
-                // === MODO PIPE (como hasta ahora) ===
-                form.SetPipeHandle(args[0]); // esto habilita el TargetNext() por pipe
+                // === PIPE MODE (as before) ===
+                form.SetPipeHandle(args[0]); // enables TargetNext() via pipe
                 Application.Run(form);
                 return;
             }
 
-            // === MODO STANDALONE (sin argumentos) ===
-            // 1) Arrancar el lector de la pistola
+            // === STANDALONE MODE (no arguments) ===
+            // 1) Start the gun reader
             GunconReader.ProgressChanged += (s, e) =>
             {
-                // Cada vez que llega un paquete, avisamos al formulario
+                // Notify the form whenever a report arrives
                 form.OnGunReport(GunState.PointerX, GunState.PointerY, GunState.Trigger);
             };
 
-            // 2) Arrancar el lector y abrir la ventana
+            // 2) Start the reader and open the window
             try
             {
                 GunconReader.Start();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("No se pudo iniciar la lectura de la GunCon3.\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Could not start reading from the GunCon3.\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             Application.Run(form);
 
-            // 3) Al cerrar la ventana, paramos
+            // 3) Stop when the window closes
             try { GunconReader.Stop(); } catch { }
         }
     }

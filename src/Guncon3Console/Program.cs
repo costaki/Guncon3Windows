@@ -2,8 +2,8 @@
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using GunconUSB;                         // lector de la pistola (proyecto GunconUSB)
-using Guncon3Console.TetherScript;      // feeders TetherScript (ratón/teclado)
+using GunconUSB;                         // gun reader (GunconUSB project)
+using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
 
 namespace Guncon3Console
 {
@@ -18,7 +18,7 @@ namespace Guncon3Console
             Console.Title = "GUNCON3";
             PrintHeader();
 
-            // === "keys": muestra tabla de keycodes y salimos ===
+            // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
             {
                 PrintKeyCodes();
@@ -36,30 +36,30 @@ namespace Guncon3Console
             }
             catch (Exception ex)
             {
-                FailAndExit("No se pudo conectar la Guncon3", ex);
+                FailAndExit("Could not connect to the Guncon3.", ex);
                 return;
             }
 
             if (!LoadRectCalib())
             {
-                Console.WriteLine("No calibration_rect.txt encontrado. Abriendo calibración (modal)...");
+                Console.WriteLine("calibration_rect.txt not found. Opening calibration (modal)...");
                 LaunchCalibrationWindowModal();
                 if (!LoadRectCalib())
                 {
-                    FailAndExit("Impossible to use without calibration (no se pudo obtener calibración).");
+                    FailAndExit("Cannot run without calibration (calibration could not be obtained).");
                     return;
                 }
             }
             else
             {
-                Console.WriteLine("Calibración cargada de calibration_rect.txt");
+                Console.WriteLine("Calibration loaded from calibration_rect.txt");
             }
 
             TryConnectFeeders();
             LoadMapping("mapping.txt");
 
             Console.WriteLine("Mapping OK.");
-            Console.WriteLine("Ready to use!   (F12 = recalibrar,  R = recargar mapping.txt,  ESC = salir)");
+            Console.WriteLine("Ready to use!   (F12 = recalibrate,  R = reload mapping.txt,  ESC = exit)");
 
             while (_running)
             {
@@ -99,7 +99,7 @@ namespace Guncon3Console
                         Recalibrate();
                     else if (k.Key == ConsoleKey.R)
                     {
-                        Console.WriteLine("[Mapping] Recargando mapping.txt…");
+                        Console.WriteLine("[Mapping] Reloading mapping.txt…");
                         LoadMapping("mapping.txt");
                         Console.WriteLine("[Mapping] OK.");
                     }
@@ -128,18 +128,18 @@ namespace Guncon3Console
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[Calibración] Error: " + ex.Message);
+                Console.WriteLine("[Calibration] Error: " + ex.Message);
             }
         }
 
         private static void Recalibrate()
         {
-            Console.WriteLine("[Calibración] Abriendo ventana (F12)...");
+            Console.WriteLine("[Calibration] Opening window (F12)...");
             LaunchCalibrationWindowModal();
             if (LoadRectCalib())
-                Console.WriteLine("Calibración cargada de calibration_rect.txt");
+                Console.WriteLine("Calibration loaded from calibration_rect.txt");
             else
-                Console.WriteLine("ATENCIÓN: no se creó calibration_rect.txt");
+                Console.WriteLine("WARNING: calibration_rect.txt was not created");
         }
 
         private static void TryConnectFeeders()
@@ -174,7 +174,7 @@ namespace Guncon3Console
 
             if (!File.Exists(path))
             {
-                Console.WriteLine("[Mapping] mapping.txt no encontrado (se usará mapeo vacío).");
+                Console.WriteLine("[Mapping] mapping.txt not found (an empty mapping will be used).");
                 return;
             }
 
@@ -200,7 +200,7 @@ namespace Guncon3Console
 
                 if (!Enum.TryParse<GunButton>(right, ignoreCase: false, out var gunBtn))
                 {
-                    Console.WriteLine($"[Mapping] Línea {lineNo}: guncommand desconocido: {right}");
+                    Console.WriteLine($"[Mapping] Line {lineNo}: unknown gun command: {right}");
                     continue;
                 }
 
@@ -220,7 +220,7 @@ namespace Guncon3Console
                 }
             }
 
-            Console.WriteLine($"[Mapping] Ratón: {AbsMouseFeeder.Mapping.Count} entradas, Teclado: {KeyboardFeeder.Mapping.Count} entradas.");
+            Console.WriteLine($"[Mapping] Mouse: {AbsMouseFeeder.Mapping.Count} entries, Keyboard: {KeyboardFeeder.Mapping.Count} entries.");
         }
 
         private static void FailAndExit(string msg, Exception ex = null)
@@ -246,24 +246,24 @@ namespace Guncon3Console
             Console.WriteLine("4:3 inside 16:9 mode enabled");
         }
 
-        // === Tabla completa de keycodes (4..111) ===
+            // === Full keycode table (4..111) ===
         private static void PrintKeyCodes()
         {
-            // índice = keycode
+            // index = keycode
             string[] name = new string[112];
 
-            // 4..29 letras
+            // 4..29 letters
             name[4] = "a"; name[5] = "b"; name[6] = "c"; name[7] = "d"; name[8] = "e"; name[9] = "f";
             name[10] = "g"; name[11] = "h"; name[12] = "i"; name[13] = "j"; name[14] = "k"; name[15] = "l";
             name[16] = "m"; name[17] = "n"; name[18] = "o"; name[19] = "p"; name[20] = "q"; name[21] = "r";
             name[22] = "s"; name[23] = "t"; name[24] = "u"; name[25] = "v"; name[26] = "w"; name[27] = "x";
             name[28] = "y"; name[29] = "z";
 
-            // 30..39 dígitos superiores
+            // 30..39 top-row digits
             name[30] = "1"; name[31] = "2"; name[32] = "3"; name[33] = "4"; name[34] = "5";
             name[35] = "6"; name[36] = "7"; name[37] = "8"; name[38] = "9"; name[39] = "0";
 
-            // especiales
+            // specials
             name[40] = "ENTER";
             name[41] = "ESCAPE";
             name[42] = "BACKSPACE";
@@ -274,21 +274,21 @@ namespace Guncon3Console
             name[47] = "[";
             name[48] = "]";
             name[49] = "\\";
-            name[50] = "";        // (vacío, igual que el original)
+            name[50] = "";        // (empty, same as original)
             name[51] = ";";
-            name[52] = "dummy5";  // mantenemos el texto del original
+            name[52] = "dummy5";  // keep original text
             name[53] = "`";
             name[54] = ",";
             name[55] = ".";
             name[56] = "/";
 
-            // bloqueo y F1..F12
+            // lock keys and F1..F12
             name[57] = "CAPSLOCK";
             name[58] = "F1"; name[59] = "F2"; name[60] = "F3"; name[61] = "F4"; name[62] = "F5";
             name[63] = "F6"; name[64] = "F7"; name[65] = "F8"; name[66] = "F9"; name[67] = "F10";
             name[68] = "F11"; name[69] = "F12";
 
-            // navegación
+            // navigation
             name[70] = "PRINTSCREEN";
             name[71] = "SCROLLLOCK";
             name[72] = "PAUSE";
@@ -339,7 +339,7 @@ namespace Guncon3Console
             }
 
             Console.WriteLine();
-            Console.WriteLine("Pulsa cualquier tecla para salir…");
+            Console.WriteLine("Press any key to exit…");
             try { Console.ReadKey(true); } catch { }
         }
     }
