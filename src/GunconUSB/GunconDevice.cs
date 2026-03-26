@@ -88,6 +88,30 @@ namespace GunconUSB
             btnState[GunButton.LDown] = ly > (128 + DEAD);
         }
 
+        public bool TryReadDecoded(out byte[] decoded)
+        {
+            decoded = null;
+            try
+            {
+                var iface = _device.Interfaces[0];
+                iface.OutPipe.Write(key);
+
+                byte[] data = new byte[ExpectedReadLength];
+                int n = iface.InPipe.Read(data);
+                if (n != ExpectedReadLength) return false;
+
+                var list = Decode(data);
+                if (list == null || list.Count < 13) return false;
+
+                decoded = list.ToArray();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static List<byte> Decode(byte[] data2)
         {
             var ret = new List<byte>();

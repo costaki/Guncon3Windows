@@ -32,8 +32,9 @@ namespace Guncon3Console
             // args:
             //  - relmouse  => single-gun mode, feed TetherScript Virtual Mouse Rel
             //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> MouseRel
-            bool dual = (args.Length > 0 && args[0].Equals("dual", StringComparison.OrdinalIgnoreCase));
-            bool useRelMouse = (!dual && args.Length > 0 && args[0].Equals("relmouse", StringComparison.OrdinalIgnoreCase));
+            bool dual = args.Any(a => a.Equals("dual", StringComparison.OrdinalIgnoreCase));
+            bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
+            bool useRelMouse = (!dual && args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
 
             // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
@@ -62,6 +63,8 @@ namespace Guncon3Console
                 new HIDController().DumpTetherscriptCandidates();
                 return;
             }
+
+            // (testMode parsed above)
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -117,6 +120,14 @@ namespace Guncon3Console
                 return;
             }
 
+            if (testMode)
+            {
+                Console.WriteLine("[Test] Opening test window...");
+                using (var w = new TestWindow(gun1, dual ? gun2 : null))
+                    Application.Run(w);
+                return;
+            }
+
             if (dual)
             {
                 _rectP1 = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1));
@@ -166,10 +177,12 @@ namespace Guncon3Console
             }
 
             Console.WriteLine("Mapping OK.");
-            Console.WriteLine("Ready to use!   (F12 = recalibrate,  R = reload mapping.txt,  ESC = exit)");
+            Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
             var p1 = new GunPlayerState();
             var p2 = dual ? new GunPlayerState() : null;
+
+            // Test window is launched modally via Application.Run when requested.
 
             while (_running)
             {
@@ -223,6 +236,15 @@ namespace Guncon3Console
                     var k = Console.ReadKey(true);
                     if (k.Key == ConsoleKey.Escape)
                         _running = false;
+                    else if (k.Key == ConsoleKey.T)
+                    {
+                        try
+                        {
+                            using (var w = new TestWindow(gun1, dual ? gun2 : null))
+                                Application.Run(w);
+                        }
+                        catch { }
+                    }
                     else if (k.Key == ConsoleKey.F12)
                     {
                         if (dual)
@@ -246,7 +268,6 @@ namespace Guncon3Console
 
                 Thread.Sleep(1);
             }
-
             try { if (dual || useRelMouse) RelMouseFeeder.Disconnect(); } catch { }
             try { AbsMouseFeeder.Disconnect(); } catch { }
             try { if (dual) GamepadFeeder.Disconnect(); } catch { }
