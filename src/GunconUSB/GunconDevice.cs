@@ -44,7 +44,7 @@ namespace GunconUSB
             try { _device?.Dispose(); } catch { }
         }
 
-        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
+        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out byte absRx, out byte absRy, out bool indicator2)
         {
             if (btnState == null) throw new ArgumentNullException(nameof(btnState));
 
@@ -73,6 +73,9 @@ namespace GunconUSB
             btnState[GunButton.AClick] = (decoded[10] & 0x80) != 0;
             btnState[GunButton.BClick] = (decoded[10] & 0x40) != 0;
 
+            absRy = (byte)decoded[0];
+            absRx = (byte)decoded[1];
+
             absY = (short)(decoded[6] * 256 + decoded[7]);
             absX = (short)(decoded[8] * 256 + decoded[9]);
 
@@ -82,10 +85,24 @@ namespace GunconUSB
             int lx = decoded[3];
             int ly = decoded[2];
 
+            int rx = absRx;
+            int ry = absRy;
+
             btnState[GunButton.LLeft] = lx < (128 - DEAD);
             btnState[GunButton.LRight] = lx > (128 + DEAD);
             btnState[GunButton.LUp] = ly < (128 - DEAD);
             btnState[GunButton.LDown] = ly > (128 + DEAD);
+
+            btnState[GunButton.RLeft] = rx < (128 - DEAD);
+            btnState[GunButton.RRight] = rx > (128 + DEAD);
+            btnState[GunButton.RUp] = ry < (128 - DEAD);
+            btnState[GunButton.RDown] = ry > (128 + DEAD);
+        }
+
+        // Backward-compatible overload
+        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
+        {
+            ReadInto(btnState, out absX, out absY, out var __rx, out var __ry, out indicator2);
         }
 
         public bool TryReadDecoded(out byte[] decoded)

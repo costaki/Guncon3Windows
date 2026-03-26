@@ -21,6 +21,12 @@
         LUp,
         LDown,
         LLeft,
-        LRight
+        LRight,
+
+        // Ejes del stick derecho “digitalizados”
+        RUp,
+        RDown,
+        RLeft,
+        RRight
     }
 }

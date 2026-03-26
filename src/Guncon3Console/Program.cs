@@ -189,11 +189,16 @@ namespace Guncon3Console
                 if (dual)
                 {
                     // Read both guns into per-player state
-                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1Ind2);
-                    gun2.ReadInto(p2.BtnState, out var g2x, out var g2y, out var g2Ind2);
+                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1rx, out var g1ry, out var g1Ind2);
+                    gun2.ReadInto(p2.BtnState, out var g2x, out var g2y, out var g2rx, out var g2ry, out var g2Ind2);
 
                     p1.INDICATOR2 = g1Ind2;
                     p2.INDICATOR2 = g2Ind2;
+
+                    p1.ABS_RX = g1rx;
+                    p1.ABS_RY = g1ry;
+                    p2.ABS_RX = g2rx;
+                    p2.ABS_RY = g2ry;
 
                     // Apply the same rectangular calibration to both
                     ApplyRectCalib(_rectP1, p1, g1x, g1y);
@@ -201,8 +206,10 @@ namespace Guncon3Console
                 }
                 else
                 {
-                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1Ind2);
+                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1rx, out var g1ry, out var g1Ind2);
                     p1.INDICATOR2 = g1Ind2;
+                    p1.ABS_RX = g1rx;
+                    p1.ABS_RY = g1ry;
                     if (_rect != null && _rect.IsValid())
                         ApplyRectCalib(_rect, p1, g1x, g1y);
                     else

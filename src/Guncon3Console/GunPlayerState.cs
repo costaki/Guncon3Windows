@@ -12,6 +12,9 @@ namespace Guncon3Console
         public short ABS_X { get; set; }
         public short ABS_Y { get; set; }
 
+        public byte ABS_RX { get; set; }
+        public byte ABS_RY { get; set; }
+
         public bool INDICATOR2 { get; set; }
 
         public bool IsInsideScreen => !INDICATOR2;

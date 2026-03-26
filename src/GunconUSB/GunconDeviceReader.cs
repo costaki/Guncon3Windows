@@ -14,9 +14,9 @@ namespace GunconUSB
             _device = new GunconDevice(devInfo);
         }
 
-        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
+        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out byte absRx, out byte absRy, out bool indicator2)
         {
-            _device.ReadInto(btnState, out absX, out absY, out indicator2);
+            _device.ReadInto(btnState, out absX, out absY, out absRx, out absRy, out indicator2);
         }
 
         public void Dispose()

@@ -15,6 +15,8 @@ namespace Guncon3Console
         private readonly Dictionary<GunButton, bool> _btn1 = new Dictionary<GunButton, bool>();
         private readonly Dictionary<GunButton, bool> _btn2 = new Dictionary<GunButton, bool>();
         private short _x1, _y1, _x2, _y2;
+        private byte _rx1, _ry1, _rx2, _ry2;
+        private byte _lx1, _ly1, _lx2, _ly2;
         private bool _ind2_1, _ind2_2;
         private bool _reading;
         private byte[] _dec1;
@@ -28,9 +30,10 @@ namespace Guncon3Console
             _gun2 = gun2;
 
             Text = "Guncon3 Test";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(900, 520);
+            ClientSize = new Size(980, 700);
+            MinimumSize = new Size(980, 700);
             BackColor = Color.Black;
             ForeColor = Color.White;
             DoubleBuffered = true;
@@ -52,13 +55,23 @@ namespace Guncon3Console
                 {
                     if (_gun1 != null)
                     {
-                        try { _gun1.ReadInto(_btn1, out _x1, out _y1, out _ind2_1); } catch { }
+                        try { _gun1.ReadInto(_btn1, out _x1, out _y1, out _rx1, out _ry1, out _ind2_1); } catch { }
                         try { _gun1.TryReadDecoded(out _dec1); } catch { }
+                        if (_dec1 != null && _dec1.Length > 3)
+                        {
+                            _ly1 = _dec1[2];
+                            _lx1 = _dec1[3];
+                        }
                     }
                     if (_gun2 != null)
                     {
-                        try { _gun2.ReadInto(_btn2, out _x2, out _y2, out _ind2_2); } catch { }
+                        try { _gun2.ReadInto(_btn2, out _x2, out _y2, out _rx2, out _ry2, out _ind2_2); } catch { }
                         try { _gun2.TryReadDecoded(out _dec2); } catch { }
+                        if (_dec2 != null && _dec2.Length > 3)
+                        {
+                            _ly2 = _dec2[2];
+                            _lx2 = _dec2[3];
+                        }
                     }
 
                     try
@@ -97,12 +110,17 @@ namespace Guncon3Console
             {
                 g.DrawString("TEST MODE (ESC = exit)", fTitle, b, new PointF(20, 20));
 
-                DrawGunPanel(g, "GUN 1", new Rectangle(20, 70, 410, 420), _btn1, _x1, _y1, _ind2_1, _dec1, ref _lastDec1, f);
-                DrawGunPanel(g, "GUN 2", new Rectangle(470, 70, 410, 420), _btn2, _x2, _y2, _ind2_2, _dec2, ref _lastDec2, f);
+                var pad = 20;
+                var top = 70;
+                var gap = 40;
+                var w = (ClientSize.Width - pad * 2 - gap) / 2;
+                var h = ClientSize.Height - top - pad;
+                DrawGunPanel(g, "GUN 1", new Rectangle(pad, top, w, h), _btn1, _x1, _y1, _lx1, _ly1, _rx1, _ry1, _ind2_1, _dec1, ref _lastDec1, f);
+                DrawGunPanel(g, "GUN 2", new Rectangle(pad + w + gap, top, w, h), _btn2, _x2, _y2, _lx2, _ly2, _rx2, _ry2, _ind2_2, _dec2, ref _lastDec2, f);
             }
         }
 
-        private static void DrawGunPanel(Graphics g, string title, Rectangle r, Dictionary<GunButton, bool> btn, short x, short y, bool ind2, byte[] dec, ref byte[] lastDec, Font f)
+        private static void DrawGunPanel(Graphics g, string title, Rectangle r, Dictionary<GunButton, bool> btn, short x, short y, byte lx, byte ly, byte rx, byte ry, bool ind2, byte[] dec, ref byte[] lastDec, Font f)
         {
             using (var pen = new Pen(Color.DimGray, 2f))
             using (var bTitle = new SolidBrush(Color.Yellow))
@@ -114,11 +132,13 @@ namespace Guncon3Console
                 g.DrawString(title, f, bTitle, new PointF(r.X + 10, r.Y + 10));
 
                 g.DrawString($"ABS: X={x} Y={y}", f, bText, new PointF(r.X + 10, r.Y + 38));
-                g.DrawString($"InsideScreen: {!ind2}", f, bText, new PointF(r.X + 10, r.Y + 60));
+                g.DrawString($"LStick: X={lx} Y={ly}", f, bText, new PointF(r.X + 10, r.Y + 60));
+                g.DrawString($"RStick: X={rx} Y={ry}", f, bText, new PointF(r.X + 10, r.Y + 82));
+                g.DrawString($"InsideScreen: {!ind2}", f, bText, new PointF(r.X + 10, r.Y + 104));
 
                 var values = Enum.GetValues(typeof(GunButton)).Cast<GunButton>().ToList();
 
-                float y0 = r.Y + 92;
+                float y0 = r.Y + 136;
                 float lineH = 18;
                 for (int i = 0; i < values.Count; i++)
                 {
