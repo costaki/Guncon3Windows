@@ -112,6 +112,7 @@
     <Compile Include="TetherScript\Enumerators.cs" />
     <Compile Include="TetherScript\AbsMouseFeeder.cs" />
     <Compile Include="TetherScript\KeyboardFeeder.cs" />
+    <Compile Include="TetherScript\RelMouseFeeder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

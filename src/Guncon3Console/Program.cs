@@ -18,6 +18,9 @@ namespace Guncon3Console
             Console.Title = "GUNCON3";
             PrintHeader();
 
+            // Simple arg parsing: `relmouse` => use TetherScript Virtual Mouse Rel
+            bool useRelMouse = (args.Length > 0 && args[0].Equals("relmouse", StringComparison.OrdinalIgnoreCase));
+
             // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
             {
@@ -25,7 +28,7 @@ namespace Guncon3Console
                 return;
             }
 
-            // === "dump-hid": dump present HID devices (helps verify multiple TetherScript instances) and exit ===
+            // === "dump-hid": dump present HID devices and exit ===
             if (args.Length > 0 && args[0].Equals("dump-hid", StringComparison.OrdinalIgnoreCase))
             {
                 new HIDController().DumpTetherscriptCandidates();
@@ -62,8 +65,16 @@ namespace Guncon3Console
                 Console.WriteLine("Calibration loaded from calibration_rect.txt");
             }
 
-            TryConnectFeeders();
+            TryConnectFeeders(useRelMouse);
             LoadMapping("mapping.txt");
+
+            // If using RelMouse, mirror mouse mappings into RelMouseFeeder.
+            if (useRelMouse)
+            {
+                RelMouseFeeder.Mapping.Clear();
+                foreach (var kv in AbsMouseFeeder.Mapping)
+                    RelMouseFeeder.Mapping[kv.Key] = kv.Value;
+            }
 
             Console.WriteLine("Mapping OK.");
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  R = reload mapping.txt,  ESC = exit)");
@@ -92,7 +103,11 @@ namespace Guncon3Console
 
                 try
                 {
-                    AbsMouseFeeder.Feed();
+                    if (useRelMouse)
+                        RelMouseFeeder.Feed();
+                    else
+                        AbsMouseFeeder.Feed();
+
                     KeyboardFeeder.Feed();
                 }
                 catch { }
@@ -108,6 +123,12 @@ namespace Guncon3Console
                     {
                         Console.WriteLine("[Mapping] Reloading mapping.txt…");
                         LoadMapping("mapping.txt");
+                        if (useRelMouse)
+                        {
+                            RelMouseFeeder.Mapping.Clear();
+                            foreach (var kv in AbsMouseFeeder.Mapping)
+                                RelMouseFeeder.Mapping[kv.Key] = kv.Value;
+                        }
                         Console.WriteLine("[Mapping] OK.");
                     }
                 }
@@ -115,7 +136,7 @@ namespace Guncon3Console
                 Thread.Sleep(1);
             }
 
-            try { AbsMouseFeeder.Disconnect(); } catch { }
+            try { if (useRelMouse) RelMouseFeeder.Disconnect(); else AbsMouseFeeder.Disconnect(); } catch { }
             try { KeyboardFeeder.Disconnect(); } catch { }
             try { GunconReader.Disconnect(); } catch { }
         }
@@ -149,13 +170,16 @@ namespace Guncon3Console
                 Console.WriteLine("WARNING: calibration_rect.txt was not created");
         }
 
-        private static void TryConnectFeeders()
+        private static void TryConnectFeeders(bool useRelMouse)
         {
             try
             {
-                Console.WriteLine("Mouse Connecting...");
-                AbsMouseFeeder.Connect();
-                Console.WriteLine("Mouse Connected. (TetherScript)");
+                Console.WriteLine(useRelMouse ? "MouseRel Connecting..." : "Mouse Connecting...");
+                if (useRelMouse)
+                    RelMouseFeeder.Connect();
+                else
+                    AbsMouseFeeder.Connect();
+                Console.WriteLine(useRelMouse ? "MouseRel Connected. (TetherScript)" : "Mouse Connected. (TetherScript)");
             }
             catch (Exception ex)
             {
