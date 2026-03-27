@@ -153,8 +153,8 @@ namespace Guncon3Console
             else
             {
                 bool t = IsDown(GunButton.Trigger);
-                bool ac = IsDown(GunButton.AClick);
-                bool bc = IsDown(GunButton.BClick);
+                bool ac = IsDown(GunButton.LClick);
+                bool bc = IsDown(GunButton.RClick);
                 bool capture = t || ac || bc;
                 if (!_prevTrig && capture)
                 {

@@ -14,8 +14,8 @@
         B2,
         C1,
         C2,
-        AClick,
-        BClick,
+        LClick,
+        RClick,
 
         // Left stick axes “digitalized”
         LUp,

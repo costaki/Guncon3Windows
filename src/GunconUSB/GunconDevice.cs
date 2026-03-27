@@ -71,8 +71,8 @@ namespace GunconUSB
             btnState[GunButton.B2] = (decoded[11] & 0x02) != 0;
             btnState[GunButton.C1] = (decoded[11] & 0x80) != 0;
             btnState[GunButton.C2] = (decoded[12] & 0x08) != 0;
-            btnState[GunButton.AClick] = (decoded[10] & 0x80) != 0;
-            btnState[GunButton.BClick] = (decoded[10] & 0x40) != 0;
+            btnState[GunButton.LClick] = (decoded[10] & 0x80) != 0;
+            btnState[GunButton.RClick] = (decoded[10] & 0x40) != 0;
 
             absY = (short)(decoded[6] * 256 + decoded[7]);
             absX = (short)(decoded[8] * 256 + decoded[9]);
