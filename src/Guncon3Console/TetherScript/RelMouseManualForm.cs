@@ -238,12 +238,8 @@ namespace Guncon3Console.TetherScript
                     label = "Calibrating";
                 }
 
-                var guid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
-                const int vid = 2970;
-                const int pid = 2048;
-
-                var info = MadWizard.WinUSBNet.USBDevice.GetDevices(guid)
-                    .FirstOrDefault(x => x.VID == vid && x.PID == pid);
+                var info = MadWizard.WinUSBNet.USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
+                    .FirstOrDefault(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId);
                 if (info == null)
                     throw new Exception("Guncon3 device not found");
 
@@ -470,12 +466,8 @@ namespace Guncon3Console.TetherScript
                 ApplyToFeeder();
                 LoadSelectedCalibration();
 
-                var guid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
-                const int vid = 2970;
-                const int pid = 2048;
-
-                var info = MadWizard.WinUSBNet.USBDevice.GetDevices(guid)
-                    .FirstOrDefault(x => x.VID == vid && x.PID == pid);
+                var info = MadWizard.WinUSBNet.USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
+                    .FirstOrDefault(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId);
                 if (info == null)
                     throw new Exception("Guncon3 device not found");
 

@@ -33,8 +33,9 @@ namespace Guncon3Console
             PrintHeader();
 
             // args:
+            //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> WindowsInput AbsMouse
+            //  - test      => open a test window showing gun input state (while still feeding TetherScript)
             //  - relmouse  => single-gun mode, feed TetherScript Virtual Mouse Rel
-            //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> MouseRel
             //  - wininputabs => single-gun mode, feed WindowsInput absolute mouse instead of TetherScript AbsMouse
             bool dual = args.Any(a => a.Equals("dual", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
@@ -95,8 +96,6 @@ namespace Guncon3Console
                 return;
             }
 
-            // (testMode parsed above)
-
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -109,12 +108,8 @@ namespace Guncon3Console
 
                 if (dual)
                 {
-                    var guid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
-                    const int vid = 2970;
-                    const int pid = 2048;
-
-                    var infos = USBDevice.GetDevices(guid)
-                                       .Where(x => x.VID == vid && x.PID == pid)
+                    var infos = USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
+                                       .Where(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId)
                                        .Take(2)
                                        .ToList();
 
@@ -131,17 +126,15 @@ namespace Guncon3Console
                 }
                 else
                 {
-                    var guid = new Guid("{A5DCBF10-6530-11D2-901F-00C04FB951ED}");
-                    const int vid = 2970;
-                    const int pid = 2048;
-
-                    var info = USBDevice.GetDevices(guid)
-                                      .FirstOrDefault(x => x.VID == vid && x.PID == pid);
+                    var info = USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
+                                      .FirstOrDefault(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId);
                     if (info == null)
                         throw new Exception("Guncon3 device not found");
 
                     gun1 = new GunconDevice(info);
+
                     _gun1ForCal = gun1;
+
                     Console.WriteLine("Guncon3 connected (single). #1=" + info.DevicePath);
                 }
             }
@@ -602,7 +595,7 @@ namespace Guncon3Console
             Console.WriteLine("4:3 inside 16:9 mode enabled");
         }
 
-            // === Full keycode table (4..111) ===
+        // === Full keycode table (4..111) ===
         private static void PrintKeyCodes()
         {
             // index = keycode

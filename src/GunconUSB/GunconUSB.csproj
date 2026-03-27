@@ -88,6 +88,7 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants.cs" />
     <Compile Include="GunButton.cs" />
     <Compile Include="GunconDevice.cs" />
     <Compile Include="Helper.cs" />
