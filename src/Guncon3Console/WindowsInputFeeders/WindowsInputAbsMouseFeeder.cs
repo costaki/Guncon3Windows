@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using GunconUSB;
 using WindowsInput;
+using Guncon3Console.GunStates;
 
-namespace Guncon3Console.TetherScript
+namespace Guncon3Console.WindowsInputFeeders
 {
     internal static class WindowsInputAbsMouseFeeder
     {

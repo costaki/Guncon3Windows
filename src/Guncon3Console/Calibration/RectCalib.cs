@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.IO;
 
-namespace Guncon3Console
+namespace Guncon3Console.Calibration
 {
     using System.Collections.Generic;
     /// <summary>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using GunconUSB;
+using Guncon3Console.GunStates;
 
 namespace Guncon3Console.TetherScript
 {
@@ -291,6 +292,4 @@ namespace Guncon3Console.TetherScript
             return (sbyte)v;
         }
     }
-
-    // Legacy SetFeatureMouseRel removed: RelMouse expects 8-bit deltas.
 }

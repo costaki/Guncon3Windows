@@ -6,7 +6,7 @@ using System.Windows.Forms;
 using WinFormsTimer = System.Windows.Forms.Timer;
 using GunconUSB;
 
-namespace Guncon3Console
+namespace Guncon3Console.Calibration
 {
     public class CalibrationWindow : Form
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GunconUSB;
 
-namespace Guncon3Console
+namespace Guncon3Console.Calibration
 {
     public sealed class TestWindow : Form
     {

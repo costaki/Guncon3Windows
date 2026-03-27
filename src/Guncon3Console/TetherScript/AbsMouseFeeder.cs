@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB;
+using Guncon3Console.GunStates;
 
 // Important: always use the enum from the GunconUSB project (singular)
 
@@ -103,16 +104,6 @@ namespace Guncon3Console.TetherScript
             Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);
         }
     }
-
-    internal interface IGunState
-    {
-        Dictionary<GunButton, bool> BtnState { get; }
-        short ABS_X { get; }
-        short ABS_Y { get; }
-        bool IsInsideScreen { get; }
-    }
-
-    // Legacy GunStateView removed: global GunState has been deleted for multigun safety.
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SetFeatureMouseAbs

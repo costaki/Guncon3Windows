@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using GunconUSB;
-using Guncon3Console.TetherScript;
 
-namespace Guncon3Console
+namespace Guncon3Console.GunStates
 {
-    internal sealed class GunPlayerState : IGunState
+    internal sealed class GunState : IGunState
     {
         public Dictionary<GunButton, bool> BtnState { get; }
 
@@ -19,7 +18,7 @@ namespace Guncon3Console
 
         public bool IsInsideScreen => !INDICATOR2;
 
-        public GunPlayerState()
+        public GunState()
         {
             var values = Enum.GetValues(typeof(GunButton));
             BtnState = new Dictionary<GunButton, bool>(values.Length);

@@ -2,10 +2,13 @@
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using GunconUSB;                         // gun reader (GunconUSB project)
-using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
-using MadWizard.WinUSBNet;
 using System.Linq;
+using MadWizard.WinUSBNet;
+using GunconUSB;                         // gun reader (GunconUSB project)
+using Guncon3Console.GunStates;        // IGunState and GunPlayerState
+using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
+using Guncon3Console.WindowsInputFeeders;
+using Guncon3Console.Calibration;          // RectCalib and CalibrationWindow
 
 namespace Guncon3Console
 {
@@ -224,8 +227,8 @@ namespace Guncon3Console
             Console.WriteLine("Mapping OK.");
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
-            var p1 = new GunPlayerState();
-            var p2 = dual ? new GunPlayerState() : null;
+            var p1 = new GunState();
+            var p2 = dual ? new GunState() : null;
 
             // Test window is launched modally via Application.Run when requested.
 
@@ -338,7 +341,7 @@ namespace Guncon3Console
             try { gun2?.Dispose(); } catch { }
         }
 
-        private static void ApplyRectCalib(RectCalib rect, GunPlayerState state, short rawX, short rawY)
+        private static void ApplyRectCalib(RectCalib rect, GunState state, short rawX, short rawY)
         {
             if (rect == null || !rect.IsValid())
             {

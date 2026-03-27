@@ -6,6 +6,8 @@ using System.Threading;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GunconUSB;
+using Guncon3Console.GunStates;
+using Guncon3Console.Calibration;
 
 namespace Guncon3Console.TetherScript
 {
@@ -247,7 +249,7 @@ namespace Guncon3Console.TetherScript
 
                 using (var gun = new GunconDevice(info))
                 {
-                    using (var w = new Guncon3Console.CalibrationWindow(savePath, label, gun))
+                    using (var w = new CalibrationWindow(savePath, label, gun))
                         w.ShowDialog(this);
                 }
 
@@ -518,7 +520,7 @@ namespace Guncon3Console.TetherScript
 
         private void GunLoop()
         {
-            var state = new Guncon3Console.GunPlayerState();
+            var state = new GunState();
             int lastUi = Environment.TickCount;
             while (_gunRunning)
             {
@@ -643,7 +645,7 @@ namespace Guncon3Console.TetherScript
                 UpdateStatusSendFail();
         }
 
-        private void FeedButtonsAndServo(Guncon3Console.GunPlayerState state)
+        private void FeedButtonsAndServo(GunState state)
         {
             byte btns = 0;
             foreach (var map in RelMouseFeeder.Mapping)
