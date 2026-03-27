@@ -64,6 +64,39 @@ namespace Guncon3Console
                 return;
             }
 
+            // === "probe-relmouse": brute-force probe the RelMouse report format ===
+            if (args.Length > 0 && args[0].Equals("probe-relmouse", StringComparison.OrdinalIgnoreCase))
+            {
+                Environment.ExitCode = RelMouseProbe.Run(args.Skip(1).ToArray());
+                return;
+            }
+
+            // === "relmouse-manual": open a simple manual sender form for RelMouse reports ===
+            if (args.Length > 0 && args[0].Equals("relmouse-manual", StringComparison.OrdinalIgnoreCase))
+            {
+                var hid = new HIDController();
+                hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
+                hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
+                hid.Connect();
+
+                if (!hid.Connected)
+                {
+                    FailAndExit("Could not connect to the TetherScript RelMouse.");
+                    return;
+                }
+
+                try
+                {
+                    using (var w = new RelMouseManualForm(hid))
+                        Application.Run(w);
+                }
+                finally
+                {
+                    try { hid.Disconnect(); } catch { }
+                }
+                return;
+            }
+
             // (testMode parsed above)
 
             Application.EnableVisualStyles();

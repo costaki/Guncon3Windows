@@ -252,7 +252,10 @@ namespace Guncon3Console.TetherScript
         public bool SendData(byte[] buffer, uint bufferLength)
         {
             if (!FConnected) return false;
-            return HidD_SetFeature(FDevHandle, buffer, bufferLength + 1);
+            uint len = bufferLength;
+            if (len == 0 && buffer != null)
+                len = (uint)buffer.Length;
+            return HidD_SetFeature(FDevHandle, buffer, len);
         }
 
         public bool ReadData(byte[] buffer, uint bufferLength)

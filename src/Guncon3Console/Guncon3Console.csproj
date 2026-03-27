@@ -118,6 +118,10 @@
     <Compile Include="TetherScript\AbsMouseFeeder.cs" />
     <Compile Include="TetherScript\KeyboardFeeder.cs" />
     <Compile Include="TetherScript\RelMouseFeeder.cs" />
+    <Compile Include="TetherScript\RelMouseManualForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="TetherScript\RelMouseProbe.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
