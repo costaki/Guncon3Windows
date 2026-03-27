@@ -55,22 +55,28 @@ namespace Guncon3Console
                 {
                     if (_gun1 != null)
                     {
-                        try { _gun1.ReadInto(_btn1, out _x1, out _y1, out _rx1, out _ry1, out _ind2_1); } catch { }
+                        try { _gun1.ReadInto(_btn1, out _x1, out _y1, out _ind2_1); } catch { }
                         try { _gun1.TryReadDecoded(out _dec1); } catch { }
                         if (_dec1 != null && _dec1.Length > 3)
                         {
                             _ly1 = _dec1[2];
                             _lx1 = _dec1[3];
+
+                            _ry1 = _dec1[0];
+                            _rx1 = _dec1[1];
                         }
                     }
                     if (_gun2 != null)
                     {
-                        try { _gun2.ReadInto(_btn2, out _x2, out _y2, out _rx2, out _ry2, out _ind2_2); } catch { }
+                        try { _gun2.ReadInto(_btn2, out _x2, out _y2, out _ind2_2); } catch { }
                         try { _gun2.TryReadDecoded(out _dec2); } catch { }
                         if (_dec2 != null && _dec2.Length > 3)
                         {
                             _ly2 = _dec2[2];
                             _lx2 = _dec2[3];
+
+                            _ry2 = _dec2[0];
+                            _rx2 = _dec2[1];
                         }
                     }
 

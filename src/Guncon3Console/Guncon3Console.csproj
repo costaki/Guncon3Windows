@@ -105,6 +105,7 @@
     <Compile Include="CalibrationWindow.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Diagnostics\RestartManagerLockFinder.cs" />
     <Compile Include="GunPlayerState.cs" />
     <Compile Include="RectCalib.cs" />
     <Compile Include="TestWindow.cs">

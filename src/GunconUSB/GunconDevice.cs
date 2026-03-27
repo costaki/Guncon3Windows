@@ -30,7 +30,8 @@ namespace GunconUSB
             0xD3, 0x69, 0x84, 0x89, 0xBA, 0xD6, 0x89, 0xBD, 0x70, 0x19, 0x8E, 0x58, 0xA8, 0x3D, 0x9B, 0x5D, 0xF0, 0x49,
             0xE8, 0xAD, 0x9D, 0x7A, 0x0D, 0x7E, 0x24, 0xDA, 0xFC, 0x0D, 0x14, 0xC5, 0x23, 0x91, 0x11, 0xF5, 0xC0, 0x4B, 0xCD,
             0x44, 0x1C, 0xC5, 0x21, 0xDF, 0x61, 0x54, 0xED, 0xA2, 0x81, 0xB7, 0xE5, 0x74, 0x94, 0xB0, 0x47, 0xEE, 0xF1,
-            0xA5, 0xBB, 0x21, 0xC8
+            0xA5, 0xBB, 0x21, 0xC8
+
         };
 
         public GunconDevice(USBDeviceInfo devInfo)
@@ -44,7 +45,7 @@ namespace GunconUSB
             try { _device?.Dispose(); } catch { }
         }
 
-        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out byte absRx, out byte absRy, out bool indicator2)
+        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
         {
             if (btnState == null) throw new ArgumentNullException(nameof(btnState));
 
@@ -73,9 +74,6 @@ namespace GunconUSB
             btnState[GunButton.AClick] = (decoded[10] & 0x80) != 0;
             btnState[GunButton.BClick] = (decoded[10] & 0x40) != 0;
 
-            absRy = (byte)decoded[0];
-            absRx = (byte)decoded[1];
-
             absY = (short)(decoded[6] * 256 + decoded[7]);
             absX = (short)(decoded[8] * 256 + decoded[9]);
 
@@ -85,8 +83,8 @@ namespace GunconUSB
             int lx = decoded[3];
             int ly = decoded[2];
 
-            int rx = absRx;
-            int ry = absRy;
+            int rx = decoded[1];
+            int ry = decoded[0];
 
             btnState[GunButton.LLeft] = lx < (128 - DEAD);
             btnState[GunButton.LRight] = lx > (128 + DEAD);
@@ -97,12 +95,6 @@ namespace GunconUSB
             btnState[GunButton.RRight] = rx > (128 + DEAD);
             btnState[GunButton.RUp] = ry < (128 - DEAD);
             btnState[GunButton.RDown] = ry > (128 + DEAD);
-        }
-
-        // Backward-compatible overload
-        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
-        {
-            ReadInto(btnState, out absX, out absY, out var __rx, out var __ry, out indicator2);
         }
 
         public bool TryReadDecoded(out byte[] decoded)

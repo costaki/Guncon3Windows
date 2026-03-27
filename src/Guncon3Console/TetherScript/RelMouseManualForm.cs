@@ -524,10 +524,8 @@ namespace Guncon3Console.TetherScript
             {
                 try
                 {
-                    _gun.ReadInto(state.BtnState, out var rawX, out var rawY, out var rx, out var ry, out var ind2);
+                    _gun.ReadInto(state.BtnState, out var rawX, out var rawY, out var ind2);
                     state.INDICATOR2 = ind2;
-                    state.ABS_RX = rx;
-                    state.ABS_RY = ry;
 
                     int dbgMappedX = 0;
                     int dbgMappedY = 0;
