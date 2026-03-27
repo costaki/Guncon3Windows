@@ -148,6 +148,10 @@
       <Project>{5386810d-7312-4069-bd9c-9aec80092da0}</Project>
       <Name>GunconUSB</Name>
     </ProjectReference>
+    <ProjectReference Include="..\WindowsInput\WindowsInput.csproj">
+      <Project>{3549cd6f-80f8-450f-b99e-cf0a736b1f2a}</Project>
+      <Name>WindowsInput</Name>
+    </ProjectReference>
     <ProjectReference Include="..\WinUSBNet\WinUSBNet.csproj">
       <Project>{19d2707f-4692-4b5e-bfdf-cc057f4b5898}</Project>
       <Name>WinUSBNet</Name>
