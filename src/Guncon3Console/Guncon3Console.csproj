@@ -122,6 +122,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="TetherScript\RelMouseProbe.cs" />
+    <Compile Include="TetherScript\WindowsInputAbsMouseFeeder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

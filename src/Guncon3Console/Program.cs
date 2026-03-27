@@ -32,9 +32,11 @@ namespace Guncon3Console
             // args:
             //  - relmouse  => single-gun mode, feed TetherScript Virtual Mouse Rel
             //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> MouseRel
+            //  - wininputabs => single-gun mode, feed WindowsInput absolute mouse instead of TetherScript AbsMouse
             bool dual = args.Any(a => a.Equals("dual", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (!dual && args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
+            bool useWindowsInputAbs = (!dual && !useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
 
             // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
@@ -198,7 +200,7 @@ namespace Guncon3Console
                 }
             }
 
-            TryConnectFeeders(useRelMouse, dual);
+            TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
             LoadMapping("mapping.txt");
 
             // If using RelMouse, mirror mouse mappings into RelMouseFeeder.
@@ -207,6 +209,23 @@ namespace Guncon3Console
                 RelMouseFeeder.Mapping.Clear();
                 foreach (var kv in AbsMouseFeeder.Mapping)
                     RelMouseFeeder.Mapping[kv.Key] = kv.Value;
+            }
+
+            // If using WindowsInput absolute mouse (single) OR dual mode (P2 uses WindowsInput abs),
+            // mirror mappings from AbsMouseFeeder.
+            // (Mapping file continues to use MOUSE.Left/Right/Middle, mapped into AbsMouseFeeder.Mapping.)
+            if (useWindowsInputAbs || dual)
+            {
+                WindowsInputAbsMouseFeeder.Mapping.Clear();
+                foreach (var kv in AbsMouseFeeder.Mapping)
+                {
+                    if (kv.Value == MouseButton.Left)
+                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.LeftButton;
+                    else if (kv.Value == MouseButton.Right)
+                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.RightButton;
+                    else if (kv.Value == MouseButton.Middle)
+                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.MiddleButton;
+                }
             }
 
             Console.WriteLine("Mapping OK.");
@@ -257,12 +276,14 @@ namespace Guncon3Console
                     if (dual)
                     {
                         AbsMouseFeeder.Feed(p1);
-                        RelMouseFeeder.Feed(p2);
+                        WindowsInputAbsMouseFeeder.Feed(p2);
                     }
                     else
                     {
                         if (useRelMouse)
                             RelMouseFeeder.Feed(p1);
+                        else if (useWindowsInputAbs)
+                            WindowsInputAbsMouseFeeder.Feed(p1);
                         else
                             AbsMouseFeeder.Feed(p1);
                     }
@@ -302,13 +323,27 @@ namespace Guncon3Console
                             foreach (var kv in AbsMouseFeeder.Mapping)
                                 RelMouseFeeder.Mapping[kv.Key] = kv.Value;
                         }
+                        if (useWindowsInputAbs || dual)
+                        {
+                            WindowsInputAbsMouseFeeder.Mapping.Clear();
+                            foreach (var kv in AbsMouseFeeder.Mapping)
+                            {
+                                if (kv.Value == MouseButton.Left)
+                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.LeftButton;
+                                else if (kv.Value == MouseButton.Right)
+                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.RightButton;
+                                else if (kv.Value == MouseButton.Middle)
+                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.MiddleButton;
+                            }
+                        }
                         Console.WriteLine("[Mapping] OK.");
                     }
                 }
 
                 Thread.Sleep(1);
             }
-            try { if (dual || useRelMouse) RelMouseFeeder.Disconnect(); } catch { }
+            try { if (useRelMouse) RelMouseFeeder.Disconnect(); } catch { }
+            try { if (dual || useWindowsInputAbs) WindowsInputAbsMouseFeeder.Disconnect(); } catch { }
             try { AbsMouseFeeder.Disconnect(); } catch { }
             try { if (dual) GamepadFeeder.Disconnect(); } catch { }
             try { KeyboardFeeder.Disconnect(); } catch { }
@@ -418,7 +453,7 @@ namespace Guncon3Console
             Console.WriteLine("[Calibration] Reloaded: " + CalibP1 + " and " + CalibP2);
         }
 
-        private static void TryConnectFeeders(bool useRelMouse, bool dual)
+        private static void TryConnectFeeders(bool useRelMouse, bool dual, bool useWindowsInputAbs)
         {
             try
             {
@@ -428,9 +463,9 @@ namespace Guncon3Console
                     AbsMouseFeeder.Connect();
                     Console.WriteLine("MouseAbs Connected. (TetherScript)");
 
-                    Console.WriteLine("MouseRel Connecting...");
-                    RelMouseFeeder.Connect();
-                    Console.WriteLine("MouseRel Connected. (TetherScript)");
+                    Console.WriteLine("MouseAbs2 Connecting... (WindowsInput Abs)");
+                    WindowsInputAbsMouseFeeder.Connect();
+                    Console.WriteLine("MouseAbs2 Connected. (WindowsInput Abs)");
 
                     Console.WriteLine("Gamepad Connecting...");
                     GamepadFeeder.Connect();
@@ -438,12 +473,26 @@ namespace Guncon3Console
                 }
                 else
                 {
-                    Console.WriteLine(useRelMouse ? "MouseRel Connecting..." : "Mouse Connecting...");
+                    if (useRelMouse)
+                        Console.WriteLine("MouseRel Connecting...");
+                    else if (useWindowsInputAbs)
+                        Console.WriteLine("Mouse Connecting... (WindowsInput Abs)");
+                    else
+                        Console.WriteLine("Mouse Connecting...");
+
                     if (useRelMouse)
                         RelMouseFeeder.Connect();
+                    else if (useWindowsInputAbs)
+                        WindowsInputAbsMouseFeeder.Connect();
                     else
                         AbsMouseFeeder.Connect();
-                    Console.WriteLine(useRelMouse ? "MouseRel Connected. (TetherScript)" : "Mouse Connected. (TetherScript)");
+
+                    if (useRelMouse)
+                        Console.WriteLine("MouseRel Connected. (TetherScript)");
+                    else if (useWindowsInputAbs)
+                        Console.WriteLine("Mouse Connected. (WindowsInput Abs)");
+                    else
+                        Console.WriteLine("Mouse Connected. (TetherScript)");
                 }
             }
             catch (Exception ex)
