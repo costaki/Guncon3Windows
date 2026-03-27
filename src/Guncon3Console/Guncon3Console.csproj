@@ -101,11 +101,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Calibration.cs" />
     <Compile Include="CalibrationWindow.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Diagnostics\RestartManagerLockFinder.cs" />
     <Compile Include="GunPlayerState.cs" />
     <Compile Include="RectCalib.cs" />
     <Compile Include="TestWindow.cs">
@@ -122,11 +120,7 @@
     <Compile Include="TetherScript\RelMouseManualForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="TetherScript\RelMouseProbe.cs" />
     <Compile Include="TetherScript\WindowsInputAbsMouseFeeder.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="mapping.txt">

@@ -66,13 +66,6 @@ namespace Guncon3Console
                 return;
             }
 
-            // === "probe-relmouse": brute-force probe the RelMouse report format ===
-            if (args.Length > 0 && args[0].Equals("probe-relmouse", StringComparison.OrdinalIgnoreCase))
-            {
-                Environment.ExitCode = RelMouseProbe.Run(args.Skip(1).ToArray());
-                return;
-            }
-
             // === "relmouse-manual": open a simple manual sender form for RelMouse reports ===
             if (args.Length > 0 && args[0].Equals("relmouse-manual", StringComparison.OrdinalIgnoreCase))
             {
