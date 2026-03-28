@@ -59,7 +59,7 @@ namespace Guncon3Console
                 else if (which == "p2") path = CalibP2;
 
                 string label = (which == "p1") ? "Calibrating: Player 1 / Gun 1" : (which == "p2") ? "Calibrating: Player 2 / Gun 2" : "Calibrating";
-                LaunchCalibrationWindowModal(path, label);
+                LaunchCalibrationWindowModal(path, label, _gun1ForCal);
                 return;
             }
 
@@ -168,55 +168,28 @@ namespace Guncon3Console
                         return;
                     }
                 }
-
                 Console.WriteLine("Calibration loaded: " + CalibP1 + " and " + CalibP2);
             }
             else
             {
-                if (!LoadRectCalib())
+                _rect = RectCalib.Load();
+
+                if (_rect == null || !_rect.IsValid())
                 {
-                    Console.WriteLine(CalibDefault + " not found. Opening calibration (modal)...");
-                    LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating");
-                    if (!LoadRectCalib())
+                    Console.WriteLine("Single mode calibration not found/invalid. Starting calibration...");
+                    Recalibrate();
+
+                    if (_rect == null || !_rect.IsValid())
                     {
-                        FailAndExit("Cannot run without calibration (calibration could not be obtained).");
+                        FailAndExit("Cannot run without calibration.");
                         return;
                     }
                 }
-                else
-                {
-                    Console.WriteLine("Calibration loaded from " + CalibDefault);
-                }
+                Console.WriteLine("Calibration loaded from " + CalibDefault);
             }
 
             TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
-            LoadMapping("mapping.txt");
-
-            // If using RelMouse, mirror mouse mappings into RelMouseFeeder.
-            if (useRelMouse)
-            {
-                RelMouseFeeder.Mapping.Clear();
-                foreach (var kv in AbsMouseFeeder.Mapping)
-                    RelMouseFeeder.Mapping[kv.Key] = kv.Value;
-            }
-
-            // If using WindowsInput absolute mouse (single) OR dual mode (P2 uses WindowsInput abs),
-            // mirror mappings from AbsMouseFeeder.
-            // (Mapping file continues to use MOUSE.Left/Right/Middle, mapped into AbsMouseFeeder.Mapping.)
-            if (useWindowsInputAbs || dual)
-            {
-                WindowsInputAbsMouseFeeder.Mapping.Clear();
-                foreach (var kv in AbsMouseFeeder.Mapping)
-                {
-                    if (kv.Value == MouseButton.Left)
-                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.LeftButton;
-                    else if (kv.Value == MouseButton.Right)
-                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.RightButton;
-                    else if (kv.Value == MouseButton.Middle)
-                        WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.MiddleButton;
-                }
-            }
-
+            LoadMapping("mapping.txt", dual, useRelMouse, useWindowsInputAbs);
             Console.WriteLine("Mapping OK.");
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
@@ -243,15 +216,10 @@ namespace Guncon3Console
                 else
                 {
                     gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1Ind2);
+
                     p1.INDICATOR2 = g1Ind2;
 
-                    if (_rect != null && _rect.IsValid())
-                        ApplyRectCalib(_rect, p1, g1x, g1y);
-                    else
-                    {
-                        p1.ABS_X = g1x;
-                        p1.ABS_Y = g1y;
-                    }
+                    ApplyRectCalib(_rect, p1, g1x, g1y);
                 }
 
                 try
@@ -259,7 +227,13 @@ namespace Guncon3Console
                     if (dual)
                     {
                         AbsMouseFeeder.Feed(p1);
-                        WindowsInputAbsMouseFeeder.Feed(p2);
+                        if (useRelMouse)
+                            RelMouseFeeder.Feed(p2);
+                        else
+                            WindowsInputAbsMouseFeeder.Feed(p2);
+
+                        KeyboardFeeder.Feed(p1);
+                        KeyboardFeeder.Feed(p2);
                     }
                     else
                     {
@@ -269,9 +243,9 @@ namespace Guncon3Console
                             WindowsInputAbsMouseFeeder.Feed(p1);
                         else
                             AbsMouseFeeder.Feed(p1);
-                    }
 
-                    KeyboardFeeder.Feed(p1);
+                        KeyboardFeeder.Feed(p1);
+                    }
                 }
                 catch { }
 
@@ -299,26 +273,7 @@ namespace Guncon3Console
                     else if (k.Key == ConsoleKey.R)
                     {
                         Console.WriteLine("[Mapping] Reloading mapping.txt…");
-                        LoadMapping("mapping.txt");
-                        if (useRelMouse)
-                        {
-                            RelMouseFeeder.Mapping.Clear();
-                            foreach (var kv in AbsMouseFeeder.Mapping)
-                                RelMouseFeeder.Mapping[kv.Key] = kv.Value;
-                        }
-                        if (useWindowsInputAbs || dual)
-                        {
-                            WindowsInputAbsMouseFeeder.Mapping.Clear();
-                            foreach (var kv in AbsMouseFeeder.Mapping)
-                            {
-                                if (kv.Value == MouseButton.Left)
-                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.LeftButton;
-                                else if (kv.Value == MouseButton.Right)
-                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.RightButton;
-                                else if (kv.Value == MouseButton.Middle)
-                                    WindowsInputAbsMouseFeeder.Mapping[kv.Key] = WindowsInput.MouseButton.MiddleButton;
-                            }
-                        }
+                        LoadMapping("mapping.txt", dual, useRelMouse, useWindowsInputAbs);
                         Console.WriteLine("[Mapping] OK.");
                     }
                 }
@@ -354,51 +309,6 @@ namespace Guncon3Console
             state.ABS_Y = (short)Math.Round(ny * 32767.0);
         }
 
-        private static bool LoadRectCalib()
-        {
-            _rect = RectCalib.Load();
-            return _rect != null && _rect.IsValid();
-        }
-
-        private static void LaunchCalibrationWindowModal()
-        {
-            try
-            {
-                using (var w = new CalibrationWindow(null, null, _gun1ForCal))
-                    Application.Run(w);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[Calibration] Error: " + ex.Message);
-            }
-        }
-
-        private static void LaunchCalibrationWindowModal(string savePath)
-        {
-            try
-            {
-                using (var w = new CalibrationWindow(savePath, null, _gun1ForCal))
-                    Application.Run(w);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[Calibration] Error: " + ex.Message);
-            }
-        }
-
-        private static void LaunchCalibrationWindowModal(string savePath, string label)
-        {
-            try
-            {
-                using (var w = new CalibrationWindow(savePath, label, _gun1ForCal))
-                    Application.Run(w);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[Calibration] Error: " + ex.Message);
-            }
-        }
-
         private static void LaunchCalibrationWindowModal(string savePath, string label, GunconDevice device)
         {
             try
@@ -415,11 +325,11 @@ namespace Guncon3Console
         private static void Recalibrate()
         {
             Console.WriteLine("[Calibration] Opening window (F12)...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating");
-            if (LoadRectCalib())
-                Console.WriteLine("Calibration loaded from " + CalibDefault);
-            else
-                Console.WriteLine("WARNING: " + CalibDefault + " was not created");
+            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating", _gun1ForCal);
+
+            _rect = RectCalib.Load();
+
+            Console.WriteLine("[Calibration] Reloaded: " + CalibDefault);
         }
 
         private static void RecalibrateDual()
@@ -442,40 +352,43 @@ namespace Guncon3Console
             {
                 if (dual)
                 {
-                    Console.WriteLine("MouseAbs Connecting...");
+                    Console.WriteLine("TetherScript Absolute Mouse for Player 1 connecting...");
                     AbsMouseFeeder.Connect();
-                    Console.WriteLine("MouseAbs Connected. (TetherScript)");
+                    Console.WriteLine("TetherScript Absolute Mouse for Player 1 connected.");
 
-                    Console.WriteLine("MouseAbs2 Connecting... (WindowsInput Abs)");
-                    WindowsInputAbsMouseFeeder.Connect();
-                    Console.WriteLine("MouseAbs2 Connected. (WindowsInput Abs)");
-
-                    Console.WriteLine("Gamepad Connecting...");
-                    GamepadFeeder.Connect();
-                    Console.WriteLine("Gamepad Connected. (TetherScript)");
+                    if (useRelMouse)
+                    {
+                        Console.WriteLine("TetherScript Relative Mouse for Player 2 connecting...");
+                        RelMouseFeeder.Connect();
+                        Console.WriteLine("TetherScript Relative Mouse for Player 2 connected.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connecting...");
+                        WindowsInputAbsMouseFeeder.Connect();
+                        Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connected.");
+                    }
                 }
                 else
                 {
                     if (useRelMouse)
-                        Console.WriteLine("MouseRel Connecting...");
-                    else if (useWindowsInputAbs)
-                        Console.WriteLine("Mouse Connecting... (WindowsInput Abs)");
-                    else
-                        Console.WriteLine("Mouse Connecting...");
-
-                    if (useRelMouse)
+                    {
+                        Console.WriteLine("TetherScript Relative Mouse connecting...");
                         RelMouseFeeder.Connect();
+                        Console.WriteLine("TetherScript Relative Mouse connected.");
+                    }
                     else if (useWindowsInputAbs)
+                    {
+                        Console.WriteLine("WindowsInput Absolute Mouse connecting...");
                         WindowsInputAbsMouseFeeder.Connect();
+                        Console.WriteLine("WindowsInput Absolute Mouse connected.");
+                    }
                     else
+                    {
+                        Console.WriteLine("TetherScript Absolute Mouse for connecting...");
                         AbsMouseFeeder.Connect();
-
-                    if (useRelMouse)
-                        Console.WriteLine("MouseRel Connected. (TetherScript)");
-                    else if (useWindowsInputAbs)
-                        Console.WriteLine("Mouse Connected. (WindowsInput Abs)");
-                    else
-                        Console.WriteLine("Mouse Connected. (TetherScript)");
+                        Console.WriteLine("TetherScript Absolute Mouse for connected.");
+                    }
                 }
             }
             catch (Exception ex)
@@ -485,9 +398,9 @@ namespace Guncon3Console
 
             try
             {
-                Console.WriteLine("Keyboard Connecting...");
+                Console.WriteLine("TetherScript Keyboard connecting...");
                 KeyboardFeeder.Connect();
-                Console.WriteLine("Keyboard Connected (TetherScript).");
+                Console.WriteLine("TetherScript Keyboard connected.");
             }
             catch (Exception ex)
             {
@@ -495,12 +408,13 @@ namespace Guncon3Console
             }
         }
 
-        private static void LoadMapping(string path)
+        private static void LoadMapping(string path, bool dual, bool useRelMouse, bool useWindowsInputAbs)
         {
             AbsMouseFeeder.Mapping.Clear();
             KeyboardFeeder.Mapping.Clear();
             RelMouseFeeder.Mapping.Clear();
             GamepadFeeder.Mapping.Clear();
+            WindowsInputAbsMouseFeeder.Mapping.Clear();
 
             if (!File.Exists(path))
             {
@@ -534,35 +448,16 @@ namespace Guncon3Console
                     continue;
                 }
 
-                if (device == "MOUSE")
+                if (device == "MOUSE" || device == "MOUSE2")
                 {
-                    if (cmd.Equals("Left", StringComparison.OrdinalIgnoreCase))
-                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Left;
-                    else if (cmd.Equals("Right", StringComparison.OrdinalIgnoreCase))
-                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Right;
-                    else if (cmd.Equals("Middle", StringComparison.OrdinalIgnoreCase))
-                        AbsMouseFeeder.Mapping[gunBtn] = MouseButton.Middle;
-                }
-                else if (device == "MOUSE2")
-                {
-                    if (cmd.Equals("Left", StringComparison.OrdinalIgnoreCase))
-                        RelMouseFeeder.Mapping[gunBtn] = MouseButton.Left;
-                    else if (cmd.Equals("Right", StringComparison.OrdinalIgnoreCase))
-                        RelMouseFeeder.Mapping[gunBtn] = MouseButton.Right;
-                    else if (cmd.Equals("Middle", StringComparison.OrdinalIgnoreCase))
-                        RelMouseFeeder.Mapping[gunBtn] = MouseButton.Middle;
+                    MapMouseInput(device, cmd, gunBtn, dual, useRelMouse, useWindowsInputAbs);
                 }
                 else if (device == "KEYBOARD")
                 {
                     if (byte.TryParse(cmd, out var keyCode))
                         KeyboardFeeder.Mapping[gunBtn] = keyCode;
                 }
-                else if (device == "KEYBOARD2")
-                {
-                    // Placeholder: no separate keyboard device exposed. Intentionally ignored.
-                    // Keep parsing so mapping files can be shared with future multi-keyboard support.
-                }
-                else if (device == "GAMEPAD2")
+                else if (device == "GAMEPAD")
                 {
                     if (int.TryParse(cmd, out var btnBit))
                         GamepadFeeder.Mapping[gunBtn] = btnBit;
@@ -570,6 +465,47 @@ namespace Guncon3Console
             }
 
             Console.WriteLine($"[Mapping] Mouse: {AbsMouseFeeder.Mapping.Count} entries, Mouse2: {RelMouseFeeder.Mapping.Count} entries, Gamepad2: {GamepadFeeder.Mapping.Count} entries, Keyboard: {KeyboardFeeder.Mapping.Count} entries.");
+        }
+
+        private static void MapMouseInput(string device, string command, GunButton gunButton, bool dual, bool useRelMouse, bool useWindowsInputAbs)
+        {
+            bool isMouse1 = device.Equals("MOUSE", StringComparison.OrdinalIgnoreCase);
+            bool isMouse2 = device.Equals("MOUSE2", StringComparison.OrdinalIgnoreCase);
+            if (!isMouse1 && !isMouse2) return;
+            if (isMouse2 && !dual) return; // MOUSE2 only valid in dual mode
+
+            bool isLeft = command.Equals("Left", StringComparison.OrdinalIgnoreCase);
+            bool isRight = command.Equals("Right", StringComparison.OrdinalIgnoreCase);
+            bool isMiddle = command.Equals("Middle", StringComparison.OrdinalIgnoreCase);
+
+            // TODO make feeders use a shared interface because this logic is ugly...
+            if ((isMouse1 && dual) || (isMouse1 && !dual && !useRelMouse && !useWindowsInputAbs))
+            {
+                if (isLeft)
+                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Left;
+                else if (isRight)
+                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Right;
+                else if (isMiddle)
+                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Middle;
+            }
+            else if ((isMouse2 && dual && useRelMouse) || (isMouse1 && !dual && useRelMouse))
+            {
+                if (isLeft)
+                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Left;
+                else if (isRight)
+                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Right;
+                else if (isMiddle)
+                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Middle;
+            }
+            else if ((isMouse2 && dual && !useRelMouse) || (isMouse1 && !dual && useWindowsInputAbs))
+            {
+                if (isLeft)
+                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.LeftButton;
+                else if (isRight)
+                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.RightButton;
+                else if (isMiddle)
+                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.MiddleButton;
+            }
         }
 
         private static void FailAndExit(string msg, Exception ex = null)
