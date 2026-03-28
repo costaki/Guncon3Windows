@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB;
 using Guncon3Console.GunStates;
+using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    static class GamepadFeeder
+    internal sealed class GamepadFeeder : IFeeder
     {
         private static readonly HIDController HID = new HIDController();
 
@@ -14,6 +15,30 @@ namespace Guncon3Console.TetherScript
         public static readonly Dictionary<GunButton, int> Mapping = new Dictionary<GunButton, int>();
 
         private static ushort _buttons;
+
+        public static GamepadFeeder Instance { get; } = new GamepadFeeder();
+
+        private GamepadFeeder() { }
+
+        public string Name => "TetherScript Gamepad";
+
+        public bool IsConnected => HID.Connected;
+
+        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+
+        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, int> mapping)
+        {
+            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
+            foreach (var kv in mapping)
+                dict[kv.Key] = kv.Value;
+            return dict;
+        }
+
+        void IFeeder.Connect() => Connect();
+
+        void IFeeder.Disconnect() => Disconnect();
+
+        void IFeeder.Feed(IGunState state) => Feed(state);
 
         public static void Connect()
         {

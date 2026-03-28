@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB;
 using Guncon3Console.GunStates;
+using Guncon3Console.Feeders;
 
 // Important: always use the enum from the GunconUSB project (singular)
 
 
 namespace Guncon3Console.TetherScript
 {
-    static class AbsMouseFeeder
+    internal sealed class AbsMouseFeeder : IFeeder
     {
         private static readonly HIDController HID = new HIDController();
 
@@ -18,6 +19,30 @@ namespace Guncon3Console.TetherScript
 
         public static bool Force4by3 = false;
         private static byte btns = 0;
+
+        public static AbsMouseFeeder Instance { get; } = new AbsMouseFeeder();
+
+        private AbsMouseFeeder() { }
+
+        public string Name => "TetherScript AbsMouse";
+
+        public bool IsConnected => HID.Connected;
+
+        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+
+        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, MouseButton> mapping)
+        {
+            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
+            foreach (var kv in mapping)
+                dict[kv.Key] = kv.Value;
+            return dict;
+        }
+
+        void IFeeder.Connect() => Connect();
+
+        void IFeeder.Disconnect() => Disconnect();
+
+        void IFeeder.Feed(IGunState state) => Feed(state);
 
         public static void Connect()
         {

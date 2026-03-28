@@ -104,6 +104,7 @@
     <Compile Include="Calibration\CalibrationWindow.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Feeders\IFeeder.cs" />
     <Compile Include="GunStates\GunPlayerState.cs" />
     <Compile Include="GunStates\IGunState.cs" />
     <Compile Include="Calibration\RectCalib.cs" />

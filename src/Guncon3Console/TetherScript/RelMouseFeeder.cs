@@ -4,10 +4,11 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using GunconUSB;
 using Guncon3Console.GunStates;
+using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    static class RelMouseFeeder
+    internal sealed class RelMouseFeeder : IFeeder
     {
         private static readonly HIDController HID = new HIDController();
 
@@ -40,6 +41,30 @@ namespace Guncon3Console.TetherScript
         private static int _m1x, _m2x, _m3x;
         private static int _m1y, _m2y, _m3y;
         private static int _mCount;
+
+        public static RelMouseFeeder Instance { get; } = new RelMouseFeeder();
+
+        private RelMouseFeeder() { }
+
+        public string Name => "TetherScript RelMouse";
+
+        public bool IsConnected => HID.Connected;
+
+        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+
+        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, MouseButton> mapping)
+        {
+            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
+            foreach (var kv in mapping)
+                dict[kv.Key] = kv.Value;
+            return dict;
+        }
+
+        void IFeeder.Connect() => Connect();
+
+        void IFeeder.Disconnect() => Disconnect();
+
+        void IFeeder.Feed(IGunState state) => Feed(state);
 
         public static void Connect()
         {

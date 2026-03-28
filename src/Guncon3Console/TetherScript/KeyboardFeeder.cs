@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB; // <-- GunButton
 using Guncon3Console.GunStates; // <-- IGunState
+using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    static class KeyboardFeeder
+    internal sealed class KeyboardFeeder : IFeeder
     {
         private static readonly HIDController HID = new HIDController();
 
@@ -20,6 +21,30 @@ namespace Guncon3Console.TetherScript
         private static bool _lastHadAny = false;
         private static long _lastSendTicks = 0;
         private static readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks; // ~500 Hz máx
+
+        public static KeyboardFeeder Instance { get; } = new KeyboardFeeder();
+
+        private KeyboardFeeder() { }
+
+        public string Name => "TetherScript Keyboard";
+
+        public bool IsConnected => HID.Connected;
+
+        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+
+        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, byte> mapping)
+        {
+            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
+            foreach (var kv in mapping)
+                dict[kv.Key] = kv.Value;
+            return dict;
+        }
+
+        void IFeeder.Connect() => Connect();
+
+        void IFeeder.Disconnect() => Disconnect();
+
+        void IFeeder.Feed(IGunState state) => Feed(state);
 
         public static void Connect()
         {

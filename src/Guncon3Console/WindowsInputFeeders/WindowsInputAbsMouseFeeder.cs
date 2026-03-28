@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using GunconUSB;
 using WindowsInput;
 using Guncon3Console.GunStates;
+using Guncon3Console.Feeders;
 
 namespace Guncon3Console.WindowsInputFeeders
 {
-    internal static class WindowsInputAbsMouseFeeder
+    internal sealed class WindowsInputAbsMouseFeeder : IFeeder
     {
         private static readonly InputSimulator Input = new InputSimulator();
 
@@ -16,6 +17,30 @@ namespace Guncon3Console.WindowsInputFeeders
         public static bool Force4by3 = false;
 
         private static byte _prevButtons;
+
+        public static WindowsInputAbsMouseFeeder Instance { get; } = new WindowsInputAbsMouseFeeder();
+
+        private WindowsInputAbsMouseFeeder() { }
+
+        public string Name => "WindowsInput AbsMouse";
+
+        public bool IsConnected => true;
+
+        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+
+        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, WindowsInput.MouseButton> mapping)
+        {
+            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
+            foreach (var kv in mapping)
+                dict[kv.Key] = kv.Value;
+            return dict;
+        }
+
+        void IFeeder.Connect() => Connect();
+
+        void IFeeder.Disconnect() => Disconnect();
+
+        void IFeeder.Feed(IGunState state) => Feed(state);
 
         public static void Connect()
         {
