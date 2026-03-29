@@ -98,8 +98,7 @@ namespace Guncon3Console.WindowsInput
 
                 if (map.Value == global::WindowsInput.MouseButton.LeftButton) btns = (byte)(btns | 1);
                 if (map.Value == global::WindowsInput.MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
-                // WindowsInput fork in this repo doesn't expose middle button down/up on IMouseSimulator.
-                // Keep mask bit reserved for compatibility, but no-op in SyncButtons.
+                if (map.Value == global::WindowsInput.MouseButton.MiddleButton) btns = (byte)(btns | (1 << 2));
             }
 
             return btns;
@@ -109,6 +108,7 @@ namespace Guncon3Console.WindowsInput
         {
             SyncButton(buttons, 0, _input.Mouse.LeftButtonDown, _input.Mouse.LeftButtonUp);
             SyncButton(buttons, 1, _input.Mouse.RightButtonDown, _input.Mouse.RightButtonUp);
+            SyncButton(buttons, 2, _input.Mouse.MiddleButtonDown, _input.Mouse.MiddleButtonUp);
         }
 
         private void SyncButton(byte buttons, int bit,
