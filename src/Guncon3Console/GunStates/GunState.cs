@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GunconUSB;
 using Guncon3Console.Calibration;
 using Guncon3Console.Feeders;
+using Guncon3Console.Mapping;
 
 namespace Guncon3Console.GunStates
 {
@@ -13,6 +14,9 @@ namespace Guncon3Console.GunStates
         public IMouseFeeder MouseFeeder { get; set; }
 
         public IKeyboardFeeder KeyboardFeeder { get; set; }
+
+        private string mappingPath { get; set; }
+        private GunMappingModel mappingModel { get; set; }
 
         public RectCalib Calibration { get; set; }
 
@@ -25,17 +29,34 @@ namespace Guncon3Console.GunStates
 
         public bool IsInsideScreen => !ScreenIndicator;
 
-        public GunState(GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null)
+        public GunState(GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, string mappingPath = null)
         {
             Device = device ?? throw new ArgumentNullException(nameof(device));
             Calibration = calibration;
             MouseFeeder = mouseFeeder;
             KeyboardFeeder = keyboardFeeder;
+            this.mappingPath = mappingPath;
 
             var values = Enum.GetValues(typeof(GunButton));
             BtnState = new Dictionary<GunButton, bool>(values.Length);
             foreach (GunButton b in values)
                 BtnState[b] = false;
+
+            LoadMapping();
+        }
+
+        public void LoadMapping()
+        {
+            if (!string.IsNullOrEmpty(mappingPath))
+                LoadMapping(mappingPath);
+        }
+
+        public void LoadMapping(string path)
+        {
+            this.mappingPath = path;
+            var model = GunMappingStore.Load(path);
+            mappingModel = model;
+            GunMappingStore.ApplyToFeeders(model, MouseFeeder, KeyboardFeeder);
         }
 
         private void UpdateFromDevice()

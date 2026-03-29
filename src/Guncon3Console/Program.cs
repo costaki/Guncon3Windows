@@ -204,11 +204,11 @@ namespace Guncon3Console
 
             TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
 
-            _player1 = new GunState(gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
-            _player2 = dual ? new GunState(gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
+            _player1 = new GunState(gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard, mappingPath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MappingP1Json));
+            _player2 = dual ? new GunState(gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard, mappingPath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MappingP2Json)) : null;
 
-            LoadMappingsJson(dual);
-            Console.WriteLine("Mapping OK (json).");
+            LoadMappingsJson(dual, logOnly: true);
+
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
 
@@ -263,9 +263,7 @@ namespace Guncon3Console
                     }
                     else if (k.Key == ConsoleKey.R)
                     {
-                        Console.WriteLine("[Mapping] Reloading mapping json…");
-                        LoadMappingsJson(dual);
-                        Console.WriteLine("[Mapping] OK.");
+                        LoadMappingsJson(dual, logOnly: false);
                     }
                 }
 
@@ -379,24 +377,20 @@ namespace Guncon3Console
             }
         }
 
-        private static void LoadMappingsJson(bool dual)
+        private static void LoadMappingsJson(bool dual, bool logOnly)
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-            var p1Path = Path.Combine(baseDir, MappingP1Json);
-            var p1 = GunMappingStore.Load(p1Path);
-            GunMappingStore.ApplyToFeeders(p1, _player1.MouseFeeder, _player1.KeyboardFeeder);
-
-            if (dual && _player2 != null)
+            if (!logOnly)
             {
-                var p2Path = Path.Combine(baseDir, MappingP2Json);
-                var p2 = GunMappingStore.Load(p2Path);
-                GunMappingStore.ApplyToFeeders(p2, _player2.MouseFeeder, _player2.KeyboardFeeder);
+                Console.WriteLine("[Mapping] Reloading mapping json…");
+                _player1.LoadMapping();
+                if (dual && _player2 != null)
+                    _player2.LoadMapping();
             }
 
             Console.WriteLine($"[Mapping] P1 Mouse: {_player1.MouseFeeder?.MappingCount() ?? 0}, P1 Keyboard: {_player1.KeyboardFeeder?.MappingCount() ?? 0}");
             if (dual && _player2 != null)
                 Console.WriteLine($"[Mapping] P2 Mouse: {_player2.MouseFeeder?.MappingCount() ?? 0}, P2 Keyboard: {_player2.KeyboardFeeder?.MappingCount() ?? 0}");
+            Console.WriteLine("[Mapping] OK.");
         }
 
         private static void FailAndExit(string msg, Exception ex = null)
