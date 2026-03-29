@@ -6,7 +6,7 @@ using GunconUSB;
 
 namespace Guncon3Console.WindowsInput
 {
-    internal sealed class KeyboardFeeder : IKeyboardFeeder
+    internal sealed class KeyboardFeeder : IKeyboardFeeder, IFeeder
     {
         private readonly global::WindowsInput.InputSimulator _input = new global::WindowsInput.InputSimulator();
 

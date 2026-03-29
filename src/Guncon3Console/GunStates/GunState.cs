@@ -2,12 +2,17 @@ using System;
 using System.Collections.Generic;
 using GunconUSB;
 using Guncon3Console.Calibration;
+using Guncon3Console.Feeders;
 
 namespace Guncon3Console.GunStates
 {
     internal sealed class GunState : IGunState
     {
         public GunconDevice Device { get; }
+
+        public IMouseFeeder MouseFeeder { get; set; }
+
+        public IKeyboardFeeder KeyboardFeeder { get; set; }
 
         public RectCalib Calibration { get; set; }
 
@@ -20,10 +25,12 @@ namespace Guncon3Console.GunStates
 
         public bool IsInsideScreen => !ScreenIndicator;
 
-        public GunState(GunconDevice device, RectCalib calibration)
+        public GunState(GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null)
         {
             Device = device ?? throw new ArgumentNullException(nameof(device));
             Calibration = calibration;
+            MouseFeeder = mouseFeeder;
+            KeyboardFeeder = keyboardFeeder;
 
             var values = Enum.GetValues(typeof(GunButton));
             BtnState = new Dictionary<GunButton, bool>(values.Length);
@@ -51,6 +58,12 @@ namespace Guncon3Console.GunStates
         {
             UpdateFromDevice();
             ApplyCalibration();
+        }
+
+        public void Feed()
+        {
+            MouseFeeder?.Feed(this);
+            KeyboardFeeder?.Feed(this);
         }
     }
 }

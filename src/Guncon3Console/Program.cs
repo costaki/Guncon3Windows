@@ -10,6 +10,7 @@ using Guncon3Console.TetherScript;
 using Guncon3Console.Feeders;
 using Guncon3Console.WindowsInput;
 using Guncon3Console.Calibration;
+using Guncon3Console.Mapping;
 
 namespace Guncon3Console
 {
@@ -24,7 +25,10 @@ namespace Guncon3Console
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
         private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
         private static readonly TetherScript.KeyboardFeeder _keyboard = new TetherScript.KeyboardFeeder();
-        private static readonly GamepadFeeder _gamepad = new GamepadFeeder();
+        private static readonly WindowsInput.KeyboardFeeder _winKeyboard = new WindowsInput.KeyboardFeeder();
+
+        private const string MappingP1Json = "mapping.p1.json";
+        private const string MappingP2Json = "mapping.p2.json";
 
         private static GunconDevice _gun1ForCal;
         private static GunconDevice _gun2ForCal;
@@ -199,12 +203,14 @@ namespace Guncon3Console
             }
 
             TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
-            LoadMapping("mapping.txt", dual, useRelMouse, useWindowsInputAbs);
-            Console.WriteLine("Mapping OK.");
+
+            _player1 = new GunState(gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
+            _player2 = dual ? new GunState(gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
+
+            LoadMappingsJson(dual);
+            Console.WriteLine("Mapping OK (json).");
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
-            _player1 = new GunState(gun1, dual ? _rectP1 : _rect);
-            _player2 = dual ? new GunState(gun2, _rectP2) : null;
 
             // Test window is launched modally via Application.Run when requested.
 
@@ -224,25 +230,12 @@ namespace Guncon3Console
                 {
                     if (dual)
                     {
-                        _absMouse.Feed(_player1);
-                        if (useRelMouse)
-                            _relMouse.Feed(_player2);
-                        else
-                            _winAbsMouse.Feed(_player2);
-
-                        _keyboard.Feed(_player1);
-                        _keyboard.Feed(_player2);
+                        _player1.Feed();
+                        _player2.Feed();
                     }
                     else
                     {
-                        if (useRelMouse)
-                            _relMouse.Feed(_player1);
-                        else if (useWindowsInputAbs)
-                            _winAbsMouse.Feed(_player1);
-                        else
-                            _absMouse.Feed(_player1);
-
-                        _keyboard.Feed(_player1);
+                        _player1.Feed();
                     }
                 }
                 catch { }
@@ -270,8 +263,8 @@ namespace Guncon3Console
                     }
                     else if (k.Key == ConsoleKey.R)
                     {
-                        Console.WriteLine("[Mapping] Reloading mapping.txt…");
-                        LoadMapping("mapping.txt", dual, useRelMouse, useWindowsInputAbs);
+                        Console.WriteLine("[Mapping] Reloading mapping json…");
+                        LoadMappingsJson(dual);
                         Console.WriteLine("[Mapping] OK.");
                     }
                 }
@@ -281,8 +274,8 @@ namespace Guncon3Console
             try { if (useRelMouse) _relMouse.Disconnect(); } catch { }
             try { if (dual || useWindowsInputAbs) _winAbsMouse.Disconnect(); } catch { }
             try { _absMouse.Disconnect(); } catch { }
-            try { if (dual) _gamepad.Disconnect(); } catch { }
             try { _keyboard.Disconnect(); } catch { }
+            try { _winKeyboard.Disconnect(); } catch { }
             try { gun1?.Dispose(); } catch { }
             try { gun2?.Dispose(); } catch { }
         }
@@ -386,104 +379,24 @@ namespace Guncon3Console
             }
         }
 
-        private static void LoadMapping(string path, bool dual, bool useRelMouse, bool useWindowsInputAbs)
+        private static void LoadMappingsJson(bool dual)
         {
-            _absMouse.ClearMapping();
-            _keyboard.ClearMapping();
-            _relMouse.ClearMapping();
-            _gamepad.ClearMapping();
-            _winAbsMouse.ClearMapping();
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            if (!File.Exists(path))
+            var p1Path = Path.Combine(baseDir, MappingP1Json);
+            var p1 = GunMappingStore.Load(p1Path);
+            GunMappingStore.ApplyToFeeders(p1, _player1.MouseFeeder, _player1.KeyboardFeeder);
+
+            if (dual && _player2 != null)
             {
-                Console.WriteLine("[Mapping] mapping.txt not found (an empty mapping will be used).");
-                return;
+                var p2Path = Path.Combine(baseDir, MappingP2Json);
+                var p2 = GunMappingStore.Load(p2Path);
+                GunMappingStore.ApplyToFeeders(p2, _player2.MouseFeeder, _player2.KeyboardFeeder);
             }
 
-            byte lineNo = 0;
-            foreach (var raw in File.ReadAllLines(path))
-            {
-                lineNo++;
-                var line = raw.Trim();
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                if (line.StartsWith("#")) continue;
-
-                var eq = line.IndexOf('=');
-                if (eq <= 0) continue;
-
-                var left = line.Substring(0, eq).Trim();
-                var right = line.Substring(eq + 1).Trim();
-
-                var dot = left.IndexOf('.');
-                if (dot <= 0) continue;
-
-                var device = left.Substring(0, dot).ToUpperInvariant();
-                var cmd = left.Substring(dot + 1);
-
-                if (!Enum.TryParse<GunButton>(right, ignoreCase: false, out var gunBtn))
-                {
-                    Console.WriteLine($"[Mapping] Line {lineNo}: unknown gun command: {right}");
-                    continue;
-                }
-
-                if (device == "MOUSE" || device == "MOUSE2")
-                {
-                    MapMouseInput(device, cmd, gunBtn, dual, useRelMouse, useWindowsInputAbs);
-                }
-                else if (device == "KEYBOARD")
-                {
-                    if (byte.TryParse(cmd, out var keyCode))
-                        _keyboard.AddMapping(gunBtn, keyCode);
-                }
-                else if (device == "GAMEPAD")
-                {
-                    if (int.TryParse(cmd, out var btnBit))
-                        _gamepad.AddMapping(gunBtn, btnBit);
-                }
-            }
-
-            Console.WriteLine($"[Mapping] Mouse: {_absMouse.MappingCount()} entries, Mouse2: {_relMouse.MappingCount()} entries, Gamepad2: {_gamepad.MappingCount()} entries, Keyboard: {_keyboard.MappingCount()} entries.");
-        }
-
-        private static void MapMouseInput(string device, string command, GunButton gunButton, bool dual, bool useRelMouse, bool useWindowsInputAbs)
-        {
-            bool isMouse1 = device.Equals("MOUSE", StringComparison.OrdinalIgnoreCase);
-            bool isMouse2 = device.Equals("MOUSE2", StringComparison.OrdinalIgnoreCase);
-            if (!isMouse1 && !isMouse2) return;
-            if (isMouse2 && !dual) return; // MOUSE2 only valid in dual mode
-
-            bool isLeft = command.Equals("Left", StringComparison.OrdinalIgnoreCase);
-            bool isRight = command.Equals("Right", StringComparison.OrdinalIgnoreCase);
-            bool isMiddle = command.Equals("Middle", StringComparison.OrdinalIgnoreCase);
-
-            // TODO make feeders use a shared interface because this logic is ugly...
-            if ((isMouse1 && dual) || (isMouse1 && !dual && !useRelMouse && !useWindowsInputAbs))
-            {
-                if (isLeft)
-                    _absMouse.AddMapping(gunButton, MouseButton.Left);
-                else if (isRight)
-                    _absMouse.AddMapping(gunButton, MouseButton.Right);
-                else if (isMiddle)
-                    _absMouse.AddMapping(gunButton, MouseButton.Middle);
-            }
-            else if ((isMouse2 && dual && useRelMouse) || (isMouse1 && !dual && useRelMouse))
-            {
-                if (isLeft)
-                    _relMouse.AddMapping(gunButton, MouseButton.Left);
-                else if (isRight)
-                    _relMouse.AddMapping(gunButton, MouseButton.Right);
-                else if (isMiddle)
-                    _relMouse.AddMapping(gunButton, MouseButton.Middle);
-            }
-            else if ((isMouse2 && dual && !useRelMouse) || (isMouse1 && !dual && useWindowsInputAbs))
-            {
-                if (isLeft)
-                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.LeftButton);
-                else if (isRight)
-                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.RightButton);
-                else if (isMiddle)
-                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.MiddleButton);
-            }
+            Console.WriteLine($"[Mapping] P1 Mouse: {_player1.MouseFeeder?.MappingCount() ?? 0}, P1 Keyboard: {_player1.KeyboardFeeder?.MappingCount() ?? 0}");
+            if (dual && _player2 != null)
+                Console.WriteLine($"[Mapping] P2 Mouse: {_player2.MouseFeeder?.MappingCount() ?? 0}, P2 Keyboard: {_player2.KeyboardFeeder?.MappingCount() ?? 0}");
         }
 
         private static void FailAndExit(string msg, Exception ex = null)

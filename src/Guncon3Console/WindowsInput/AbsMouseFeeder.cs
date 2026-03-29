@@ -7,7 +7,7 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.WindowsInput
 {
-    internal sealed class AbsMouseFeeder : IMouseFeeder
+    internal sealed class AbsMouseFeeder : IMouseFeeder, IFeeder
     {
         private readonly InputSimulator _input = new InputSimulator();
 

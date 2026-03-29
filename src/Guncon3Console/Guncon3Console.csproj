@@ -120,6 +120,8 @@
     <Compile Include="Calibration\TestWindow.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Mapping\GunMappingModel.cs" />
+    <Compile Include="Mapping\GunMappingStore.cs" />
     <Compile Include="TetherScript\GamepadFeeder.cs" />
     <Compile Include="TetherScript\HIDController.cs" />
     <Compile Include="Program.cs" />
@@ -134,11 +136,6 @@
     <Compile Include="TetherScript\TetherScriptMarshal.cs" />
     <Compile Include="WindowsInput\AbsMouseFeeder.cs" />
     <Compile Include="WindowsInput\KeyboardFeeder.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="mapping.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">
@@ -167,6 +164,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="mapping.p1.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="mapping.p2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
