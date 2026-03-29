@@ -515,7 +515,7 @@ namespace Guncon3Console.TetherScript
 
         private void GunLoop()
         {
-            var state = new GunState(Player.Player1, _gun, _calib);
+            var state = new GunState(Player.Player1, _gun, calibration: _calib);
             int lastUi = Environment.TickCount;
             while (_gunRunning)
             {

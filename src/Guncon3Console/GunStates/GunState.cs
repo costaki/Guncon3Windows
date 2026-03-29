@@ -28,6 +28,8 @@ namespace Guncon3Console.GunStates
         private GunMappingModel MappingModel { get; set; }
 
         public RectCalib Calibration { get; set; }
+        public bool HasCalibration => Calibration != null;
+        public bool CalibrationIsValid => Calibration != null && Calibration.IsValid();
 
         public Dictionary<GunButton, bool> BtnState { get; set; }
 
@@ -38,7 +40,7 @@ namespace Guncon3Console.GunStates
 
         public bool IsInsideScreen => !ScreenIndicator;
 
-        public GunState(Player player, GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null)
+        public GunState(Player player, GunconDevice device, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, RectCalib calibration = null )
         {
             PlayerNum = player;
             Device = device ?? throw new ArgumentNullException(nameof(device));
@@ -52,6 +54,17 @@ namespace Guncon3Console.GunStates
                 BtnState[b] = false;
 
             LoadMapping();
+        }
+
+        public void LoadNewCalibration(string path)
+        {
+            Calibration = RectCalib.Load(path);
+        }
+
+        public void RefreshCalibration()
+        {
+            if (Calibration != null)
+                Calibration.Refresh();
         }
 
         public void LoadMapping()

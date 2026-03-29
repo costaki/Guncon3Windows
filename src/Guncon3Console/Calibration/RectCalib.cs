@@ -35,15 +35,14 @@ namespace Guncon3Console.Calibration
         [DataMember(Order = 7)]
         public bool InvertY { get; set; }
 
-        public RectCalib(string calibrationPath)
+        public RectCalib()
         {
-            if (string.IsNullOrWhiteSpace(calibrationPath))
-                throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
-            CalibrationPath = calibrationPath;
         }
 
-        private RectCalib()
+        public RectCalib(string calibrationPath)
         {
+            if (!string.IsNullOrWhiteSpace(calibrationPath))
+                CalibrationPath = calibrationPath;
         }
 
         /// <summary>Has valid ranges and a valid screen size?</summary>
@@ -109,7 +108,7 @@ namespace Guncon3Console.Calibration
                 throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
 
             if (!File.Exists(calibrationPath))
-                return null;
+                return new RectCalib(calibrationPath);
 
             try
             {
@@ -139,7 +138,6 @@ namespace Guncon3Console.Calibration
                     var rc = (RectCalib)ser.ReadObject(fs);
                     if (rc == null || !rc.IsValid())
                         throw new Exception("Failed to refresh calibration: invalid data.");
-                    this.CalibrationPath = rc.CalibrationPath;
                     this.RawMinX = rc.RawMinX;
                     this.RawMaxX = rc.RawMaxX;
                     this.RawMinY = rc.RawMinY;

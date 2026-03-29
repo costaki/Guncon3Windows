@@ -8,9 +8,7 @@ using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.TetherScript;
 using Guncon3Console.Feeders;
-using Guncon3Console.WindowsInput;
 using Guncon3Console.Calibration;
-using Guncon3Console.Mapping;
 using static Guncon3Console.GunStates.GunState;
 
 namespace Guncon3Console
@@ -18,10 +16,6 @@ namespace Guncon3Console
     internal static class Program
     {
         private static volatile bool _running = true;
-
-        private static RectCalib _rect;
-        private static RectCalib _rectP1;
-        private static RectCalib _rectP2;
 
         private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
@@ -39,11 +33,15 @@ namespace Guncon3Console
         private const string CalibP1 = RectCalib.Player1FileName;
         private const string CalibP2 = RectCalib.Player2FileName;
 
+        private static string AppPath;
+
         [STAThread]
         private static void Main(string[] args)
         {
-            Console.Title = "GUNCON3";
+            Console.Title = "GUNCON3 Console";
             PrintHeader();
+
+            AppPath = AppDomain.CurrentDomain.BaseDirectory;
 
             // args:
             //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> WindowsInput AbsMouse
@@ -59,20 +57,6 @@ namespace Guncon3Console
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
             {
                 PrintKeyCodes();
-                return;
-            }
-
-            // === "calib": run calibration window and exit ===
-            // calib [p1|p2] (dual) or calib (single)
-            if (args.Length > 0 && args[0].Equals("calib", StringComparison.OrdinalIgnoreCase))
-            {
-                string which = (args.Length > 1) ? args[1].ToLowerInvariant() : "";
-                string path = CalibDefault;
-                if (which == "p1") path = CalibP1;
-                else if (which == "p2") path = CalibP2;
-
-                string label = (which == "p1") ? "Calibrating: Player 1 / Gun 1" : (which == "p2") ? "Calibrating: Player 2 / Gun 2" : "Calibrating";
-                LaunchCalibrationWindowModal(path, label, _gun1);
                 return;
             }
 
@@ -156,48 +140,61 @@ namespace Guncon3Console
                 return;
             }
 
-            if (dual)
+            TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
+
+            _player1 = new GunState(Player.Player1, _gun1, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
+            _player2 = dual ? new GunState(Player.Player2, _gun2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
+
+            LoadMappingsJson(dual, logOnly: true);
+
+            string calibPathP1 = null;
+            string modeString = null;
+            if (!dual)
             {
-                _rectP1 = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1));
-                _rectP2 = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2));
-
-                if (_rectP1 == null || !_rectP1.IsValid() || _rectP2 == null || !_rectP2.IsValid())
-                {
-                    Console.WriteLine("Dual mode calibration not found/invalid. Starting calibration...");
-                    RecalibrateDual();
-
-                    if (_rectP1 == null || !_rectP1.IsValid() || _rectP2 == null || !_rectP2.IsValid())
-                    {
-                        FailAndExit("Cannot run dual mode without both calibrations.");
-                        return;
-                    }
-                }
-                Console.WriteLine("Calibration loaded: " + CalibP1 + " and " + CalibP2);
+                calibPathP1 = Path.Combine(AppPath, CalibDefault);
+                modeString = "SINGLE";
             }
             else
             {
-                _rect = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault));
+                calibPathP1 = Path.Combine(AppPath, CalibP1);
+                modeString = "DUAL";
+            }
 
-                if (_rect == null || !_rect.IsValid())
+            _player1.LoadNewCalibration(calibPathP1);
+            if (!_player1.CalibrationIsValid)
+            {
+                Console.WriteLine($"[Calibration - {modeString} mode] Player 1 / Gun 1 calibration not found/invalid. Starting calibration...");
+                RecalibrateGun(_player1, dual);
+
+                if (!_player1.CalibrationIsValid)
                 {
-                    Console.WriteLine("Single mode calibration not found/invalid. Starting calibration...");
-                    Recalibrate();
+                    FailAndExit($"[Calibration - {modeString} mode] Cannot run without calibration.");
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[Calibration - {modeString} mode] Player 1 / Gun 1 calibration loaded from " + _player1.Calibration.CalibrationPath);
+            }
 
-                    if (_rect == null || !_rect.IsValid())
+            if (dual)
+             {
+                _player2.LoadNewCalibration(Path.Combine(AppPath, CalibP2));
+                if (!_player2.CalibrationIsValid)
+                {
+                    Console.WriteLine($"[Calibration - {modeString} mode] Player 2 / Gun 2 calibration not found/invalid. Starting calibration...");
+                    RecalibrateGun(_player2, dual);
+                    if (!_player2.CalibrationIsValid)
                     {
-                        FailAndExit("Cannot run without calibration.");
+                        FailAndExit($"[Calibration - {modeString} mode] Cannot run dual mode without both calibrations.");
                         return;
                     }
                 }
-                Console.WriteLine("Calibration loaded from " + CalibDefault);
+                else
+                {
+                    Console.WriteLine($"[Calibration - {modeString} mode] Player 2 / Gun 2 calibration loaded from " + _player2.Calibration.CalibrationPath);
+                }
             }
-
-            TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
-
-            _player1 = new GunState(Player.Player1, _gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
-            _player2 = dual ? new GunState(Player.Player2, _gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
-
-            LoadMappingsJson(dual, logOnly: true);
 
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
@@ -229,10 +226,9 @@ namespace Guncon3Console
                     }
                     else if (k.Key == ConsoleKey.F12)
                     {
+                        RecalibrateGun(_player1, dual);
                         if (dual)
-                            RecalibrateDual();
-                        else
-                            Recalibrate();
+                            RecalibrateGun(_player2, dual);
                     }
                     else if (k.Key == ConsoleKey.R)
                     {
@@ -264,48 +260,51 @@ namespace Guncon3Console
             }
         }
 
-        private static void Recalibrate()
+        private static void RecalibrateGun(GunState gunState, bool dual)
         {
-            Console.WriteLine("[Calibration] Single mode: calibrating...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating: Player 1 / Gun 1", _gun1);
+            string modeString = "SINGLE";
+            if (dual)
+                modeString = "DUAL";
 
-            _player1.Calibration.Refresh();
+            string gunString = "Player 1 / Gun 1";
+            if (gunState.PlayerNum == Player.Player2)
+                gunString = "Player 2 / Gun 2";
 
-            Console.WriteLine("[Calibration] Reloaded: " + CalibDefault);
-        }
+            Console.WriteLine($"[Calibration - {modeString} mode] Calibrating {gunString}...");
+            LaunchCalibrationWindowModal(gunState.Calibration.CalibrationPath, $"Calibrating: {gunString}", gunState.Device);
 
-        private static void RecalibrateDual()
-        {
-            Console.WriteLine("[Calibration] Dual mode: calibrating P1...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1), "Calibrating: Player 1 / Gun 1", _gun1);
-
-            Console.WriteLine("[Calibration] Dual mode: calibrating P2...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2), "Calibrating: Player 2 / Gun 2", _gun2);
-
-            _player1.Calibration.Refresh();
-            _player2.Calibration.Refresh();
-
-            Console.WriteLine("[Calibration] Reloaded: " + CalibP1 + " and " + CalibP2);
+            gunState.RefreshCalibration();
+            if (!gunState.CalibrationIsValid)
+            {
+                FailAndExit($"[Calibration - {modeString} mode] {gunString} calibration failed or invalid.");
+                return;
+            }
+            Console.WriteLine($"[Calibration - {modeString} mode] {gunString} calibration reloaded: " + gunState.Calibration.CalibrationPath);
         }
 
         private static void TryConnectFeeders(bool useRelMouse, bool dual, bool useWindowsInputAbs)
         {
             try
             {
-                Console.WriteLine("TetherScript Absolute connecting...");
+                Console.WriteLine("[FeederConnect] TetherScript Absolute Mouse connecting...");
                 _absMouse.Connect();
-                Console.WriteLine("TetherScript Absolute connected.");
+                Console.WriteLine("[FeederConnect] TetherScript Absolute Mouse connected.");
 
-                Console.WriteLine("TetherScript Relative connecting...");
+                Console.WriteLine("[FeederConnect] TetherScript Relative Mouse connecting...");
                 _relMouse.Connect();
-                Console.WriteLine("TetherScript Relative connected.");
+                Console.WriteLine("[FeederConnect] TetherScript Relative Mouse connected.");
 
-                Console.WriteLine("TetherScript Keyboard connecting...");
+                Console.WriteLine("[FeederConnect] TetherScript Keyboard connecting...");
                 _keyboard.Connect();
-                Console.WriteLine("TetherScript Keyboard connected.");
+                Console.WriteLine("[FeederConnect] TetherScript Keyboard connected.");
 
+                Console.WriteLine("[FeederConnect] WindowsInput Absolute Mouse connecting...");
                 _winAbsMouse.Connect();
+                Console.WriteLine("[FeederConnect] WindowsInput Absolute Mouse connected.");
+
+                Console.WriteLine("[FeederConnect] WindowsInput Keyboard connecting...");
                 _winKeyboard.Connect();
+                Console.WriteLine("[FeederConnect] WindowsInput Keyboard connected.");
             }
             catch (Exception ex)
             {
