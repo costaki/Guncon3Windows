@@ -26,20 +26,25 @@ namespace Guncon3Console.Calibration
 
             _path = calibrationPath;
 
-            Text = "RectCalib Editor";
+            Text = "Manual Calibration Editor";
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(520, 420);
-            MinimumSize = new Size(520, 420);
+            ClientSize = new Size(620, 320);
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
 
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 11,
-                Padding = new Padding(10)
+                ColumnCount = 1,
+                RowCount = 4,
+                Padding = new Padding(8),
+                AutoSize = true
             };
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             Controls.Add(root);
 
             var warning = new Label
@@ -47,23 +52,60 @@ namespace Guncon3Console.Calibration
                 Text = "Warning: calibration should not generally be edited manually. Use normal calibration whenever possible.",
                 Dock = DockStyle.Fill,
                 AutoSize = true,
-                ForeColor = Color.DarkRed
+                ForeColor = Color.DarkRed,
+                Font = new Font(Font.FontFamily, Font.Size + 2.0f, FontStyle.Bold)
             };
             root.Controls.Add(warning, 0, 0);
-            root.SetColumnSpan(warning, 2);
 
-            _rawMinX = AddNumber(root, 1, "RawMinX", -32768, 32767, 0);
-            _rawMaxX = AddNumber(root, 2, "RawMaxX", -32768, 32767, 0);
-            _rawMinY = AddNumber(root, 3, "RawMinY", -32768, 32767, 0);
-            _rawMaxY = AddNumber(root, 4, "RawMaxY", -32768, 32767, 0);
-            _screenW = AddNumber(root, 5, "ScreenW", 1, 16384, 0);
-            _screenH = AddNumber(root, 6, "ScreenH", 1, 16384, 0);
+            var pathPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true
+            };
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.Controls.Add(pathPanel, 0, 1);
+
+            var pathLabel = new Label { Text = "File:", AutoSize = true, Anchor = AnchorStyles.Left };
+            var pathBox = new TextBox
+            {
+                ReadOnly = true,
+                Dock = DockStyle.Fill,
+                Text = _path,
+                BorderStyle = BorderStyle.FixedSingle,
+                Multiline = true,
+                Height = 40,
+                ScrollBars = ScrollBars.Vertical,
+                WordWrap = true
+            };
+            pathPanel.Controls.Add(pathLabel, 0, 0);
+            pathPanel.Controls.Add(pathBox, 1, 0);
+
+            var fields = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 7,
+                AutoSize = true
+            };
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            root.Controls.Add(fields, 0, 2);
+
+            _rawMinX = AddNumber(fields, 0, "RawMinX", -32768, 32767, 0);
+            _rawMaxX = AddNumber(fields, 1, "RawMaxX", -32768, 32767, 0);
+            _rawMinY = AddNumber(fields, 2, "RawMinY", -32768, 32767, 0);
+            _rawMaxY = AddNumber(fields, 3, "RawMaxY", -32768, 32767, 0);
+            _screenW = AddNumber(fields, 4, "ScreenW", 1, 16384, 0);
+            _screenH = AddNumber(fields, 5, "ScreenH", 1, 16384, 0);
 
             var lblInv = new Label { Text = "InvertY", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
             _invertY = new CheckBox { Dock = DockStyle.Left };
             _invertY.CheckedChanged += (s, e) => _dirty = true;
-            root.Controls.Add(lblInv, 0, 7);
-            root.Controls.Add(_invertY, 1, 7);
+            fields.Controls.Add(lblInv, 0, 6);
+            fields.Controls.Add(_invertY, 1, 6);
 
             var buttonRow = new FlowLayoutPanel
             {
@@ -72,8 +114,7 @@ namespace Guncon3Console.Calibration
                 AutoSize = true,
                 WrapContents = false
             };
-            root.Controls.Add(buttonRow, 0, 9);
-            root.SetColumnSpan(buttonRow, 2);
+            root.Controls.Add(buttonRow, 0, 3);
 
             var btnSave = new Button { Text = "Save", AutoSize = true };
             btnSave.Click += (s, e) => Save();
@@ -83,7 +124,12 @@ namespace Guncon3Console.Calibration
             btnClose.Click += (s, e) => Close();
             buttonRow.Controls.Add(btnClose);
 
-            Load += (s, e) => LoadModel();
+            Load += (s, e) =>
+            {
+                // Encourage wrapping instead of horizontal cutoff.
+                warning.MaximumSize = new Size(root.ClientSize.Width - root.Padding.Horizontal, 0);
+                LoadModel();
+            };
             FormClosing += (s, e) =>
             {
                 if (!_dirty)
@@ -103,8 +149,8 @@ namespace Guncon3Console.Calibration
 
         private static NumericUpDown AddNumber(TableLayoutPanel root, int row, string label, decimal min, decimal max, int decimals)
         {
-            var lbl = new Label { Text = label, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-            var num = new NumericUpDown { Dock = DockStyle.Fill, Minimum = min, Maximum = max, DecimalPlaces = decimals };
+            var lbl = new Label { Text = label, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = true, Anchor = AnchorStyles.Left };
+            var num = new NumericUpDown { Dock = DockStyle.Left, Minimum = min, Maximum = max, DecimalPlaces = decimals, Width = 140 };
             num.ValueChanged += (s, e) =>
             {
                 var f = num.FindForm() as RectCalibEditorForm;

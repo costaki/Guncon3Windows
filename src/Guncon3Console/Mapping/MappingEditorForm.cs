@@ -26,6 +26,8 @@ namespace Guncon3Console.Mapping
 
         private readonly TabControl _tabs;
 
+        private TextBox _activePathText;
+
         private GunMappingModel _modelP1;
         private GunMappingModel _modelP2;
 
@@ -43,17 +45,18 @@ namespace Guncon3Console.Mapping
 
             Text = "Guncon3 Mapping Editor";
             StartPosition = FormStartPosition.CenterScreen;
-            Size = new Size(900, 700);
-            MinimumSize = new Size(800, 600);
+            Size = new Size(900, 620);
+            MinimumSize = new Size(800, 450);
 
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
+                RowCount = 3,
                 Padding = new Padding(8)
             };
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             Controls.Add(root);
 
@@ -74,12 +77,51 @@ namespace Guncon3Console.Mapping
                 _tabs.TabPages.Add(p2Page);
             }
 
+            var pathPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true
+            };
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            pathPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            var lblPath = new Label { Text = "Config file:", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 6, 0, 0) };
+            _activePathText = new TextBox { ReadOnly = true, Dock = DockStyle.Fill, Margin = new Padding(3, 6, 0, 0) };
+            pathPanel.Controls.Add(lblPath, 0, 0);
+            pathPanel.Controls.Add(_activePathText, 1, 0);
+            root.Controls.Add(pathPanel, 0, 1);
+
+            UpdateActivePathText();
+            _tabs.SelectedIndexChanged += (s, e) => UpdateActivePathText();
+
             Load += (s, e) => LoadAll();
             FormClosing += (s, e) =>
             {
                 if (!e.Cancel)
                     e.Cancel = !PromptSaveIfDirty();
             };
+        }
+
+        private static TextBox CreateReadOnlyInfoBox(string text)
+        {
+            return new TextBox
+            {
+                ReadOnly = true,
+                Dock = DockStyle.Top,
+                Text = text ?? string.Empty,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+        }
+
+        private void UpdateActivePathText()
+        {
+            if (_activePathText == null)
+                return;
+
+            var isP2 = _enableP2 && _tabs != null && _tabs.SelectedIndex == 1;
+            _activePathText.Text = isP2 ? (_p2Path ?? string.Empty) : _p1Path;
         }
 
         private Control CreatePlayerPanel(int player, DataGridView grid)
@@ -95,14 +137,22 @@ namespace Guncon3Console.Mapping
             panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             var feeders = (player == 1 ? _p1Feeders : _p2Feeders) ?? string.Empty;
-            var lblFeeders = new Label
+            var feedersPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                AutoSize = true,
-                Padding = new Padding(0, 0, 0, 6),
-                Text = string.IsNullOrWhiteSpace(feeders) ? string.Empty : ("Output: " + feeders)
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true
             };
-            panel.Controls.Add(lblFeeders, 0, 0);
+            feedersPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            feedersPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            var lbl = new Label { Text = "Output:", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 0, 0, 6) };
+            var txt = CreateReadOnlyInfoBox(feeders);
+            txt.Margin = new Padding(3, 0, 0, 6);
+            feedersPanel.Controls.Add(lbl, 0, 0);
+            feedersPanel.Controls.Add(txt, 1, 0);
+            panel.Controls.Add(feedersPanel, 0, 0);
 
             panel.Controls.Add(grid, 0, 1);
 
@@ -277,6 +327,8 @@ namespace Guncon3Console.Mapping
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
 
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
             grid.DataError += (s, e) =>
             {
                 // Ignore invalid persisted values (e.g. older mapping files) instead of showing the default dialog.
@@ -288,7 +340,8 @@ namespace Guncon3Console.Mapping
                 Name = "GunButton",
                 HeaderText = "GunButton",
                 ReadOnly = true,
-                FillWeight = 25
+                FillWeight = 28,
+                MinimumWidth = 110
             };
             grid.Columns.Add(colBtn);
 
@@ -297,7 +350,8 @@ namespace Guncon3Console.Mapping
                 Name = "Mouse",
                 HeaderText = "Mouse",
                 FlatStyle = FlatStyle.Flat,
-                FillWeight = 25
+                FillWeight = 18,
+                MinimumWidth = 90
             };
             colMouse.Items.Add("");
             colMouse.Items.AddRange(new object[] { "Left", "Right", "Middle" });
@@ -308,7 +362,8 @@ namespace Guncon3Console.Mapping
                 Name = "Keyboard",
                 HeaderText = "Keyboard (HidKeyCode)",
                 FlatStyle = FlatStyle.Flat,
-                FillWeight = 55
+                FillWeight = 44,
+                MinimumWidth = 160
             };
             colKey.Items.Add("");
             colKey.Items.AddRange(Enum.GetNames(typeof(HidKeyCode)).Cast<object>().ToArray());
@@ -320,7 +375,8 @@ namespace Guncon3Console.Mapping
                 HeaderText = string.Empty,
                 Text = "Clear",
                 UseColumnTextForButtonValue = true,
-                FillWeight = 20
+                FillWeight = 10,
+                MinimumWidth = 70
             };
             grid.Columns.Add(colClear);
 
