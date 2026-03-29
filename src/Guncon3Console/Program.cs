@@ -29,10 +29,6 @@ namespace Guncon3Console
         private static GunState _player1;
         private static GunState _player2;
 
-        private const string CalibDefault = RectCalib.DefaultFileName;
-        private const string CalibP1 = RectCalib.Player1FileName;
-        private const string CalibP2 = RectCalib.Player2FileName;
-
         private static string AppPath;
 
         [STAThread]
@@ -151,12 +147,12 @@ namespace Guncon3Console
             string modeString = null;
             if (!dual)
             {
-                calibPathP1 = Path.Combine(AppPath, CalibDefault);
+                calibPathP1 = Path.Combine(AppPath, RectCalib.DefaultFileName);
                 modeString = "SINGLE";
             }
             else
             {
-                calibPathP1 = Path.Combine(AppPath, CalibP1);
+                calibPathP1 = Path.Combine(AppPath, RectCalib.Player1FileName);
                 modeString = "DUAL";
             }
 
@@ -179,7 +175,7 @@ namespace Guncon3Console
 
             if (dual)
              {
-                _player2.LoadNewCalibration(Path.Combine(AppPath, CalibP2));
+                _player2.LoadNewCalibration(Path.Combine(AppPath, RectCalib.Player2FileName));
                 if (!_player2.CalibrationIsValid)
                 {
                     Console.WriteLine($"[Calibration - {modeString} mode] Player 2 / Gun 2 calibration not found/invalid. Starting calibration...");
