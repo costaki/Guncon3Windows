@@ -61,17 +61,34 @@ namespace Guncon3Console
 
             AppPath = AppDomain.CurrentDomain.BaseDirectory;
 
-            // args:
-            //  - dual      => single process reads 2 guns: P1 -> MouseAbs, P2 -> WindowsInput AbsMouse
-            //  - test      => open a test window showing gun input state (while still feeding TetherScript)
-            //  - relmouse  => single-gun mode, feed TetherScript Virtual Mouse Rel
-            //  - wininputabs => single-gun mode, feed WindowsInput absolute mouse instead of TetherScript AbsMouse
-            // Default to dual mode; fall back to single automatically if only one gun is found.
-            // Allow forcing single mode with "single".
+            // args (case-insensitive):
+            //  - help|-h|/?     => show help and exit
+            //  - keys           => show HID keycode table and exit
+            //  - dump-hid       => dump present HID devices and exit
+            //  - relmouse-manual=> open RelMouse manual sender UI and exit
+            //
+            // Runtime modes:
+            //  - default is DUAL (one process reads up to 2 guns)
+            //      P1 -> TetherScript AbsMouse + TetherScript Keyboard
+            //      P2 -> WindowsInput AbsMouse + WindowsInput Keyboard
+            //    If only 1 gun is detected, the app automatically switches to SINGLE.
+            //  - single         => force SINGLE mode even if 2 guns are present
+            //
+            // Options:
+            //  - test           => open test window showing gun input state (still feeds output)
+            //  - relmouse       => single-gun: feed TetherScript Virtual Mouse Rel
+            //  - wininputabs    => single-gun: feed WindowsInput AbsMouse instead of TetherScript AbsMouse
             bool dual = !args.Any(a => a.Equals("single", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
             bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
+
+            // === "help": show usage and exit ===
+            if (args.Any(a => a.Equals("help", StringComparison.OrdinalIgnoreCase) || a.Equals("-h", StringComparison.OrdinalIgnoreCase) || a.Equals("/?", StringComparison.OrdinalIgnoreCase)))
+            {
+                PrintHelp();
+                return;
+            }
 
             // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
@@ -389,6 +406,38 @@ namespace Guncon3Console
             Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("4:3 inside 16:9 mode enabled");
+        }
+
+        private static void PrintHelp()
+        {
+            Console.WriteLine("Usage: Guncon3Console.exe [options]");
+            Console.WriteLine();
+            Console.WriteLine("Modes:");
+            Console.WriteLine("  (default)    Dual mode (reads up to 2 guns). If only 1 gun is found, switches to single automatically.");
+            Console.WriteLine("  single       Force single-gun mode.");
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            Console.WriteLine("  test         Open a test window showing gun input state.");
+            Console.WriteLine("  relmouse     Single-gun: use TetherScript relative mouse output.");
+            Console.WriteLine("  wininputabs  Single-gun: use WindowsInput absolute mouse output.");
+            Console.WriteLine();
+            Console.WriteLine("Commands:");
+            Console.WriteLine("  help|-h|/?   Show this help and exit.");
+            Console.WriteLine("  keys         Print HID keycodes (4..111) and exit.");
+            Console.WriteLine("  dump-hid     Dump HID devices and exit.");
+            Console.WriteLine("  relmouse-manual  Open RelMouse manual sender UI and exit.");
+            Console.WriteLine();
+            Console.WriteLine("Runtime hotkeys (console):");
+            Console.WriteLine("  ESC  Exit");
+            Console.WriteLine("  T    Test window");
+            Console.WriteLine("  M    Mapping UI");
+            Console.WriteLine("  R    Reload mapping json");
+            Console.WriteLine("  F12  Recalibrate all");
+            Console.WriteLine("  1    Recalibrate Player 1");
+            Console.WriteLine("  2    Recalibrate Player 2 (dual mode)");
+            Console.WriteLine();
+            Console.WriteLine("Press any key to exit…");
+            try { Console.ReadKey(true); } catch { }
         }
 
         // === Full keycode table (4..111) ===
