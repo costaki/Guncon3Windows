@@ -425,93 +425,18 @@ namespace Guncon3Console
         // === Full keycode table (4..111) ===
         private static void PrintKeyCodes()
         {
-            // index = keycode
-            string[] name = new string[112];
-
-            // 4..29 letters
-            name[4] = "a"; name[5] = "b"; name[6] = "c"; name[7] = "d"; name[8] = "e"; name[9] = "f";
-            name[10] = "g"; name[11] = "h"; name[12] = "i"; name[13] = "j"; name[14] = "k"; name[15] = "l";
-            name[16] = "m"; name[17] = "n"; name[18] = "o"; name[19] = "p"; name[20] = "q"; name[21] = "r";
-            name[22] = "s"; name[23] = "t"; name[24] = "u"; name[25] = "v"; name[26] = "w"; name[27] = "x";
-            name[28] = "y"; name[29] = "z";
-
-            // 30..39 top-row digits
-            name[30] = "1"; name[31] = "2"; name[32] = "3"; name[33] = "4"; name[34] = "5";
-            name[35] = "6"; name[36] = "7"; name[37] = "8"; name[38] = "9"; name[39] = "0";
-
-            // specials
-            name[40] = "ENTER";
-            name[41] = "ESCAPE";
-            name[42] = "BACKSPACE";
-            name[43] = "TAB";
-            name[44] = "SPACEBAR";
-            name[45] = "-";
-            name[46] = "=";
-            name[47] = "[";
-            name[48] = "]";
-            name[49] = "\\";
-            name[50] = "";        // (empty, same as original)
-            name[51] = ";";
-            name[52] = "dummy5";  // keep original text
-            name[53] = "`";
-            name[54] = ",";
-            name[55] = ".";
-            name[56] = "/";
-
-            // lock keys and F1..F12
-            name[57] = "CAPSLOCK";
-            name[58] = "F1"; name[59] = "F2"; name[60] = "F3"; name[61] = "F4"; name[62] = "F5";
-            name[63] = "F6"; name[64] = "F7"; name[65] = "F8"; name[66] = "F9"; name[67] = "F10";
-            name[68] = "F11"; name[69] = "F12";
-
-            // navigation
-            name[70] = "PRINTSCREEN";
-            name[71] = "SCROLLLOCK";
-            name[72] = "PAUSE";
-            name[73] = "INSERT";
-            name[74] = "HOME";
-            name[75] = "PAGEUP";
-            name[76] = "DELETE";
-            name[77] = "END";
-            name[78] = "PAGEDOWN";
-            name[79] = "RIGHTARROW";
-            name[80] = "LEFTARROW";
-            name[81] = "DOWNARROW";
-            name[82] = "UPARROW";
-
-            // keypad
-            name[83] = "NUMLOCK";
-            name[84] = "K/";    // keypad /
-            name[85] = "K*";    // keypad *
-            name[86] = "K-";    // keypad -
-            name[87] = "K+";    // keypad +
-            name[88] = "KENTER";
-            name[89] = "K1";
-            name[90] = "K2";
-            name[91] = "K3";
-            name[92] = "K4";
-            name[93] = "K5";
-            name[94] = "K6";
-            name[95] = "K7";
-            name[96] = "K8";
-            name[97] = "K9";
-            name[98] = "K0";
-            name[99] = "K.";
-
-            // F13..F24
-            name[100] = "F13"; name[101] = "F14"; name[102] = "F15"; name[103] = "F16";
-            name[104] = "F17"; name[105] = "F18"; name[106] = "F19"; name[107] = "F20";
-            name[108] = "F21"; name[109] = "F22"; name[110] = "F23"; name[111] = "F24";
-
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("KEYCODE\tKEY");
             Console.ResetColor();
 
-            for (int i = 4; i <= 111; i++)
+            var values = Enum.GetValues(typeof(HidKeyCode));
+            foreach (HidKeyCode key in values)
             {
-                var n = name[i];
-                if (!string.IsNullOrEmpty(n))
-                    Console.WriteLine($"{i}\t{n}");
+                var code = (byte)key;
+                if (code < 4 || code > 111)
+                    continue;
+
+                Console.WriteLine($"{code}\t{key.ToString().ToUpperInvariant()}");
             }
 
             Console.WriteLine();

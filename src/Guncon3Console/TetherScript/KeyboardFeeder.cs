@@ -45,6 +45,8 @@ namespace Guncon3Console.TetherScript
                     _mapping[gunButton] = b;
                 else if (mapping is int i)
                     _mapping[gunButton] = unchecked((byte)i);
+                else if (mapping is HidKeyCode hidEnum)
+                    _mapping[gunButton] = (byte)hidEnum;
             }
             catch { }
         }

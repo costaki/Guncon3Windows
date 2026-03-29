@@ -124,25 +124,11 @@ namespace Guncon3Console.Mapping
 
             var s = raw.Trim();
 
-            // TetherScript keyboard expects HID keycodes (byte/int 0..255)
-            // WindowsInput keyboard expects VirtualKeyCode enum.
-            var typeName = feeder.GetType().FullName ?? string.Empty;
-            bool isWindowsInput = typeName.IndexOf("Guncon3Console.WindowsInput", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (Enum.TryParse<Guncon3Console.TetherScript.HidKeyCode>(s, ignoreCase: true, out var hk))
+                return hk;
 
-            if (isWindowsInput)
-            {
-                // Accept either numeric VK code or enum name.
-                if (int.TryParse(s, out var vki))
-                    return (global::WindowsInput.Native.VirtualKeyCode)vki;
-
-                if (Enum.TryParse<global::WindowsInput.Native.VirtualKeyCode>(s, ignoreCase: true, out var vkc))
-                    return vkc;
-
-                return null;
-            }
-
-            if (int.TryParse(s, out var hid))
-                return hid;
+            //if (int.TryParse(s, out var hid))
+            //    return hid;
 
             return null;
         }
