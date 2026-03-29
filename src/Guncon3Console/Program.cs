@@ -66,7 +66,9 @@ namespace Guncon3Console
             //  - test      => open a test window showing gun input state (while still feeding TetherScript)
             //  - relmouse  => single-gun mode, feed TetherScript Virtual Mouse Rel
             //  - wininputabs => single-gun mode, feed WindowsInput absolute mouse instead of TetherScript AbsMouse
-            bool dual = args.Any(a => a.Equals("dual", StringComparison.OrdinalIgnoreCase));
+            // Default to dual mode; fall back to single automatically if only one gun is found.
+            // Allow forcing single mode with "single".
+            bool dual = !args.Any(a => a.Equals("single", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
             bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
@@ -126,10 +128,10 @@ namespace Guncon3Console
                 if (infos == null || infos.Count == 0)
                     throw new Exception("[Device Connection] Guncon3 device not found");
 
-                if (dual)
+                if (dual && infos.Count < 2)
                 {
-                    if (infos.Count < 2)
-                        throw new Exception("[Device Connection] Dual mode requires 2 Guncon3 devices.");
+                    dual = false;
+                    Console.WriteLine("[Device Connection] Only one Guncon3 detected; switching to single mode.");
                 }
 
                 _gun1 = new GunconDevice(infos[0]);
@@ -137,9 +139,6 @@ namespace Guncon3Console
 
                 if (dual)
                 {
-                    if (infos.Count < 2)
-                        throw new Exception("[Device Connection] Dual mode requires 2 Guncon3 devices.");
-
                     _gun2 = new GunconDevice(infos[1]);
                     Console.WriteLine("[Device Connection] Guncon3 connected. #2=" + infos[1].DevicePath);
                 }
