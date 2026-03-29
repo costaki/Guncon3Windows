@@ -23,7 +23,7 @@ namespace Guncon3Console
         private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
         private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
-        private static readonly KeyboardFeeder _keyboard = new KeyboardFeeder();
+        private static readonly TetherScript.KeyboardFeeder _keyboard = new TetherScript.KeyboardFeeder();
         private static readonly GamepadFeeder _gamepad = new GamepadFeeder();
 
         private static GunconDevice _gun1ForCal;
