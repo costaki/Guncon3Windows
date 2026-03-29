@@ -10,93 +10,86 @@ namespace Guncon3Console.TetherScript
 {
     internal sealed class RelMouseFeeder : IFeeder
     {
-        private static readonly HIDController HID = new HIDController();
+        private readonly HIDController _hid = new HIDController();
 
-        public static readonly Dictionary<GunButton, MouseButton> Mapping = new Dictionary<GunButton, MouseButton>();
+        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
-        private static byte _btns;
+        private byte _btns;
 
         // Tunables (servo)
         // Cursor error (in pixels) is multiplied by Kp to produce a relative delta.
         // Note: the output is clamped to MaxStepPx to stay within 8-bit deltas.
-        public static int Kp = 1;
-        public static int DeadzonePx = 1;
-        public static int MaxStepPx = 40;
-        public static int MinStepPx = 1; // minimum step applied when outside deadzone (helps overcome stickiness)
-        public static int SlewLimitPx = 25; // max change per frame of dx/dy (reduces flip-flop / jitter)
-        public static double TargetSmoothing = 0.25; // 0..1 EMA for target point (higher = less lag)
-        public static int DeadzoneUnlockPx = 4; // hysteresis: once settled, must exceed this to move again
-        public static int UpdateIntervalMs = 0; // optional pacing; 0 = no sleep
-        public static bool InvertX = false;
-        public static bool InvertY = false;
+        public int Kp { get; set; } = 1;
+        public int DeadzonePx { get; set; } = 1;
+        public int MaxStepPx { get; set; } = 40;
+        public int MinStepPx { get; set; } = 1; // minimum step applied when outside deadzone (helps overcome stickiness)
+        public int SlewLimitPx { get; set; } = 25; // max change per frame of dx/dy (reduces flip-flop / jitter)
+        public double TargetSmoothing { get; set; } = 0.25; // 0..1 EMA for target point (higher = less lag)
+        public int DeadzoneUnlockPx { get; set; } = 4; // hysteresis: once settled, must exceed this to move again
+        public int UpdateIntervalMs { get; set; } = 0; // optional pacing; 0 = no sleep
+        public bool InvertX { get; set; } = false;
+        public bool InvertY { get; set; } = false;
 
-        private static int _lastDx;
-        private static int _lastDy;
+        private int _lastDx;
+        private int _lastDy;
 
-        private static bool _settled;
-        private static double _fltTargetX;
-        private static double _fltTargetY;
-        private static bool _fltInit;
+        private bool _settled;
+        private double _fltTargetX;
+        private double _fltTargetY;
+        private bool _fltInit;
 
-        private static int _m1x, _m2x, _m3x;
-        private static int _m1y, _m2y, _m3y;
-        private static int _mCount;
-
-        public static RelMouseFeeder Instance { get; } = new RelMouseFeeder();
-
-        private RelMouseFeeder() { }
+        private int _m1x, _m2x, _m3x;
+        private int _m1y, _m2y, _m3y;
+        private int _mCount;
+        public RelMouseFeeder() { }
 
         public string Name => "TetherScript RelMouse";
 
-        public bool IsConnected => HID.Connected;
+        public bool IsConnected => _hid.Connected;
 
-        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+        public void ClearMapping() => _mapping.Clear();
 
-        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, MouseButton> mapping)
+        public int MappingCount() => _mapping.Count;
+
+        public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
-            foreach (var kv in mapping)
-                dict[kv.Key] = kv.Value;
-            return dict;
+            if (mapping is MouseButton btn)
+                _mapping[gunButton] = btn;
         }
 
-        void IFeeder.Connect() => Connect();
-
-        void IFeeder.Disconnect() => Disconnect();
-
-        void IFeeder.Feed(IGunState state) => Feed(state);
-
-        public static void Connect()
+        public dynamic GetMapping(GunButton gunButton)
         {
-            HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
-            HID.Connect();
+            if (_mapping.TryGetValue(gunButton, out var v))
+                return v;
+            return null;
+        }
 
-            if (!HID.Connected)
+        public void Connect()
+        {
+            _hid.OnLog += Log;
+            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
+            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
+            _hid.Connect();
+
+            if (!_hid.Connected)
                 throw new Exception("Could not connect to TetherScript's RelMouse");
 
             _btns = 0;
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
-            HID.Disconnect();
-            HID.OnLog -= Log;
+            _hid.Disconnect();
+            _hid.OnLog -= Log;
         }
 
         private static void Log(object s, LogArgs e) => Console.WriteLine("MouseRel " + e.Msg);
 
-        internal static void Feed()
-        {
-            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
-        }
-
-        internal static void Feed(IGunState state)
+        public void Feed(IGunState state)
         {
             // Buttons
             _btns = 0;
-            foreach (var map in Mapping)
+            foreach (var map in _mapping)
             {
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
@@ -229,7 +222,7 @@ namespace Guncon3Console.TetherScript
             return new POINT { X = x, Y = y };
         }
 
-        private static POINT SmoothTarget(POINT raw)
+        private POINT SmoothTarget(POINT raw)
         {
             double a = TargetSmoothing;
             if (a < 0) a = 0;
@@ -252,7 +245,7 @@ namespace Guncon3Console.TetherScript
             return new POINT { X = (int)Math.Round(_fltTargetX), Y = (int)Math.Round(_fltTargetY) };
         }
 
-        private static POINT Median3(POINT p)
+        private POINT Median3(POINT p)
         {
             // Median filter helps reject single-frame outliers that can cause large diagonal jumps.
             // It adds ~0-1 frame of latency in the worst case (usually not noticeable).
@@ -293,7 +286,7 @@ namespace Guncon3Console.TetherScript
             return new POINT();
         }
 
-        private static void Send_Data_To_MouseRel(byte buttons, short dx, short dy)
+        private void Send_Data_To_MouseRel(byte buttons, short dx, short dy)
         {
             // Empirically validated via RelMouseProbe:
             // payload = [ReportID=1, CommandCode=2, Buttons, Dx8, Dy8]
@@ -307,7 +300,7 @@ namespace Guncon3Console.TetherScript
             buf[2] = buttons;
             buf[3] = unchecked((byte)dx8);
             buf[4] = unchecked((byte)dy8);
-            HID.SendData(buf, (uint)buf.Length);
+            _hid.SendData(buf, (uint)buf.Length);
         }
 
         private static sbyte ToSByte(short v)

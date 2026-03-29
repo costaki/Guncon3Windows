@@ -6,8 +6,11 @@ namespace Guncon3Console.Feeders
 {
     internal interface IFeeder
     {
-        Dictionary<GunButton, dynamic> Mapping { get; }
         string Name { get; }
+        void ClearMapping();
+        int MappingCount();
+        void AddMapping(GunButton gunButton, dynamic mapping);
+        dynamic GetMapping(GunButton gunButton);
         bool IsConnected { get; }
         void Connect();
         void Disconnect();

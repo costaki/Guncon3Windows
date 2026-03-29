@@ -9,54 +9,47 @@ namespace Guncon3Console.WindowsInputFeeders
 {
     internal sealed class WindowsInputAbsMouseFeeder : IFeeder
     {
-        private static readonly InputSimulator Input = new InputSimulator();
+        private readonly InputSimulator _input = new InputSimulator();
 
         // Map: logical gun button (public enum in GunconUSB) -> WindowsInput mouse button
-        public static readonly Dictionary<GunButton, WindowsInput.MouseButton> Mapping = new Dictionary<GunButton, WindowsInput.MouseButton>();
+        private readonly Dictionary<GunButton, WindowsInput.MouseButton> _mapping = new Dictionary<GunButton, WindowsInput.MouseButton>();
 
-        public static bool Force4by3 = false;
+        public bool Force4by3 { get; set; } = false;
 
-        private static byte _prevButtons;
-
-        public static WindowsInputAbsMouseFeeder Instance { get; } = new WindowsInputAbsMouseFeeder();
-
-        private WindowsInputAbsMouseFeeder() { }
+        private byte _prevButtons;
+        public WindowsInputAbsMouseFeeder() { }
 
         public string Name => "WindowsInput AbsMouse";
 
         public bool IsConnected => true;
 
-        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+        public void ClearMapping() => _mapping.Clear();
 
-        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, WindowsInput.MouseButton> mapping)
+        public int MappingCount() => _mapping.Count;
+
+        public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
-            foreach (var kv in mapping)
-                dict[kv.Key] = kv.Value;
-            return dict;
+            if (mapping is WindowsInput.MouseButton btn)
+                _mapping[gunButton] = btn;
         }
 
-        void IFeeder.Connect() => Connect();
+        public dynamic GetMapping(GunButton gunButton)
+        {
+            if (_mapping.TryGetValue(gunButton, out var v))
+                return v;
+            return null;
+        }
 
-        void IFeeder.Disconnect() => Disconnect();
-
-        void IFeeder.Feed(IGunState state) => Feed(state);
-
-        public static void Connect()
+        public void Connect()
         {
             _prevButtons = 0;
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
         }
 
-        internal static void Feed()
-        {
-            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
-        }
-
-        internal static void Feed(IGunState state)
+        public void Feed(IGunState state)
         {
             ushort absX = 0;
             ushort absY = 0;
@@ -75,7 +68,7 @@ namespace Guncon3Console.WindowsInputFeeders
                 absY = ConvertSigned32768ToUShort(y);
 
                 // Send absolute movement every frame.
-                Input.Mouse.MoveMouseTo(absX, absY);
+                _input.Mouse.MoveMouseTo(absX, absY);
             }
 
             var buttons = ComputeButtonsMask(state);
@@ -93,10 +86,10 @@ namespace Guncon3Console.WindowsInputFeeders
             return (ushort)Math.Min(65535, v * 2);
         }
 
-        private static byte ComputeButtonsMask(IGunState state)
+        private byte ComputeButtonsMask(IGunState state)
         {
             byte btns = 0;
-            foreach (var map in Mapping)
+            foreach (var map in _mapping)
             {
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
@@ -110,13 +103,13 @@ namespace Guncon3Console.WindowsInputFeeders
             return btns;
         }
 
-        private static void SyncButtons(byte buttons)
+        private void SyncButtons(byte buttons)
         {
-            SyncButton(buttons, 0, Input.Mouse.LeftButtonDown, Input.Mouse.LeftButtonUp);
-            SyncButton(buttons, 1, Input.Mouse.RightButtonDown, Input.Mouse.RightButtonUp);
+            SyncButton(buttons, 0, _input.Mouse.LeftButtonDown, _input.Mouse.LeftButtonUp);
+            SyncButton(buttons, 1, _input.Mouse.RightButtonDown, _input.Mouse.RightButtonUp);
         }
 
-        private static void SyncButton(byte buttons, int bit,
+        private void SyncButton(byte buttons, int bit,
             Func<IMouseSimulator> down,
             Func<IMouseSimulator> up)
         {

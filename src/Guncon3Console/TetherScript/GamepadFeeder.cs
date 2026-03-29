@@ -9,62 +9,66 @@ namespace Guncon3Console.TetherScript
 {
     internal sealed class GamepadFeeder : IFeeder
     {
-        private static readonly HIDController HID = new HIDController();
+        private readonly HIDController _hid = new HIDController();
 
         // Map: logical gun button -> bit index in the gamepad Buttons field (0..15)
-        public static readonly Dictionary<GunButton, int> Mapping = new Dictionary<GunButton, int>();
+        private readonly Dictionary<GunButton, int> _mapping = new Dictionary<GunButton, int>();
 
-        private static ushort _buttons;
-
-        public static GamepadFeeder Instance { get; } = new GamepadFeeder();
-
-        private GamepadFeeder() { }
+        private ushort _buttons;
+        public GamepadFeeder() { }
 
         public string Name => "TetherScript Gamepad";
 
-        public bool IsConnected => HID.Connected;
+        public bool IsConnected => _hid.Connected;
 
-        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+        public void ClearMapping() => _mapping.Clear();
 
-        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, int> mapping)
+        public int MappingCount() => _mapping.Count;
+
+        public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
-            foreach (var kv in mapping)
-                dict[kv.Key] = kv.Value;
-            return dict;
+            try
+            {
+                if (mapping is int i)
+                    _mapping[gunButton] = i;
+                else if (mapping is byte b)
+                    _mapping[gunButton] = b;
+            }
+            catch { }
         }
 
-        void IFeeder.Connect() => Connect();
-
-        void IFeeder.Disconnect() => Disconnect();
-
-        void IFeeder.Feed(IGunState state) => Feed(state);
-
-        public static void Connect()
+        public dynamic GetMapping(GunButton gunButton)
         {
-            HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_GAMEPAD;
-            HID.Connect();
+            if (_mapping.TryGetValue(gunButton, out var v))
+                return v;
+            return null;
+        }
 
-            if (!HID.Connected)
+        public void Connect()
+        {
+            _hid.OnLog += Log;
+            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
+            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_GAMEPAD;
+            _hid.Connect();
+
+            if (!_hid.Connected)
                 throw new Exception("Could not connect to TetherScript Gamepad.");
 
             _buttons = 0;
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
-            HID.Disconnect();
-            HID.OnLog -= Log;
+            _hid.Disconnect();
+            _hid.OnLog -= Log;
         }
 
         private static void Log(object s, LogArgs e) => Console.WriteLine("Gamepad " + e.Msg);
 
-        internal static void Feed(IGunState state)
+        public void Feed(IGunState state)
         {
             _buttons = 0;
-            foreach (var kv in Mapping)
+            foreach (var kv in _mapping)
             {
                 if (!state.BtnState.TryGetValue(kv.Key, out bool pressed) || !pressed)
                     continue;
@@ -86,7 +90,7 @@ namespace Guncon3Console.TetherScript
             };
 
             byte[] buf = StructToBytes(data, Marshal.SizeOf(data));
-            HID.SendData(buf, (uint)Marshal.SizeOf(data));
+            _hid.SendData(buf, (uint)Marshal.SizeOf(data));
         }
 
         private static byte[] StructToBytes<T>(T value, int size) where T : struct

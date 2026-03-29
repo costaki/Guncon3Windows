@@ -9,50 +9,54 @@ namespace Guncon3Console.TetherScript
 {
     internal sealed class KeyboardFeeder : IFeeder
     {
-        private static readonly HIDController HID = new HIDController();
+        private readonly HIDController _hid = new HIDController();
 
-        private static readonly uint FTimeout = 5000;
+        private readonly uint _fTimeout = 5000;
 
         // Logical mapping -> keycode (numbers from "keys")
-        public static readonly Dictionary<GunButton, byte> Mapping = new Dictionary<GunButton, byte>();
+        private readonly Dictionary<GunButton, byte> _mapping = new Dictionary<GunButton, byte>();
 
         // Last sent state
-        private static readonly byte[] _lastKeys = new byte[6];
-        private static bool _lastHadAny = false;
-        private static long _lastSendTicks = 0;
-        private static readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks; // ~500 Hz máx
-
-        public static KeyboardFeeder Instance { get; } = new KeyboardFeeder();
-
-        private KeyboardFeeder() { }
+        private readonly byte[] _lastKeys = new byte[6];
+        private bool _lastHadAny = false;
+        private long _lastSendTicks = 0;
+        private readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks; // ~500 Hz máx
+        public KeyboardFeeder() { }
 
         public string Name => "TetherScript Keyboard";
 
-        public bool IsConnected => HID.Connected;
+        public bool IsConnected => _hid.Connected;
 
-        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+        public void ClearMapping() => _mapping.Clear();
 
-        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, byte> mapping)
+        public int MappingCount() => _mapping.Count;
+
+        public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
-            foreach (var kv in mapping)
-                dict[kv.Key] = kv.Value;
-            return dict;
+            try
+            {
+                if (mapping is byte b)
+                    _mapping[gunButton] = b;
+                else if (mapping is int i)
+                    _mapping[gunButton] = unchecked((byte)i);
+            }
+            catch { }
         }
 
-        void IFeeder.Connect() => Connect();
-
-        void IFeeder.Disconnect() => Disconnect();
-
-        void IFeeder.Feed(IGunState state) => Feed(state);
-
-        public static void Connect()
+        public dynamic GetMapping(GunButton gunButton)
         {
-            HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
-            HID.Connect();
-            if (!HID.Connected)
+            if (_mapping.TryGetValue(gunButton, out var v))
+                return v;
+            return null;
+        }
+
+        public void Connect()
+        {
+            _hid.OnLog += Log;
+            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
+            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
+            _hid.Connect();
+            if (!_hid.Connected)
                 throw new Exception("Could not connect to TetherScript Keyboard.");
 
             Array.Clear(_lastKeys, 0, _lastKeys.Length);
@@ -60,7 +64,7 @@ namespace Guncon3Console.TetherScript
             _lastSendTicks = 0;
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
             try
             {
@@ -68,19 +72,19 @@ namespace Guncon3Console.TetherScript
                 Send(0, 0, 0, 0, 0, 0, 0, 0);
             }
             catch { }
-            HID.Disconnect();
-            HID.OnLog -= Log;
+            _hid.Disconnect();
+            _hid.OnLog -= Log;
         }
 
         private static void Log(object s, LogArgs e) => Console.WriteLine("Keyboard " + e.Msg);
 
-        public static void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
+        public void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
             {
                 ReportID = 1,
                 CommandCode = 2,
-                Timeout = FTimeout / 5,
+                Timeout = _fTimeout / 5,
                 Modifier = Modifier,
                 Padding = Padding,
                 Key0 = Key0,
@@ -92,19 +96,19 @@ namespace Guncon3Console.TetherScript
             };
 
             byte[] buf = GetBytes(data, Marshal.SizeOf(data));
-            HID.SendData(buf, (uint)buf.Length);
+            _hid.SendData(buf, (uint)buf.Length);
         }
 
-        public static void Ping()
+        public void Ping()
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
             {
                 ReportID = 1,
                 CommandCode = 3,
-                Timeout = FTimeout / 5
+                Timeout = _fTimeout / 5
             };
             byte[] buf = GetBytes(data, Marshal.SizeOf(data));
-            HID.SendData(buf, (uint)buf.Length);
+            _hid.SendData(buf, (uint)buf.Length);
         }
 
         private static byte[] GetBytes(SetFeatureKeyboard sfj, int size)
@@ -121,26 +125,20 @@ namespace Guncon3Console.TetherScript
         }
 
         // Hold keys: no "machine-gun" repeats
-        internal static void Feed()
-        {
-            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
-
-        }
-
-        internal static void Feed(IGunState state)
+        public void Feed(IGunState state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
 
             // Keep the driver alive
             Ping();
 
-            if (Mapping.Count == 0) return;
+            if (_mapping.Count == 0) return;
 
             // Build current set
             byte[] current = new byte[6];
             int idx = 0;
 
-            foreach (var kv in Mapping)
+            foreach (var kv in _mapping)
             {
                 if (idx >= 6) break;
 

@@ -12,70 +12,69 @@ namespace Guncon3Console.TetherScript
 {
     internal sealed class AbsMouseFeeder : IFeeder
     {
-        private static readonly HIDController HID = new HIDController();
+        private readonly HIDController _hid = new HIDController();
 
         // Map: logical gun button (public enum in GunconUSB) -> TetherScript virtual mouse button
-        public static readonly Dictionary<GunButton, MouseButton> Mapping = new Dictionary<GunButton, MouseButton>();
+        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
-        public static bool Force4by3 = false;
-        private static byte btns = 0;
+        public bool Force4by3 { get; set; } = false;
+        private byte _btns;
 
-        public static AbsMouseFeeder Instance { get; } = new AbsMouseFeeder();
-
-        private AbsMouseFeeder() { }
+        public AbsMouseFeeder() { }
 
         public string Name => "TetherScript AbsMouse";
 
-        public bool IsConnected => HID.Connected;
+        public bool IsConnected => _hid.Connected;
 
-        Dictionary<GunButton, dynamic> IFeeder.Mapping => ConvertMapping(Mapping);
+        public void ClearMapping() => _mapping.Clear();
 
-        private static Dictionary<GunButton, dynamic> ConvertMapping(Dictionary<GunButton, MouseButton> mapping)
+        public int MappingCount() => _mapping.Count;
+
+        public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            var dict = new Dictionary<GunButton, dynamic>(mapping.Count);
-            foreach (var kv in mapping)
-                dict[kv.Key] = kv.Value;
-            return dict;
+            if (mapping is MouseButton btn)
+                _mapping[gunButton] = btn;
         }
 
-        void IFeeder.Connect() => Connect();
-
-        void IFeeder.Disconnect() => Disconnect();
-
-        void IFeeder.Feed(IGunState state) => Feed(state);
-
-        public static void Connect()
+        public dynamic GetMapping(GunButton gunButton)
         {
-            HID.OnLog += Log;
-            HID.VendorID = (ushort)DriversConst.TTC_VENDORID;            // VendorId TetherScript
-            HID.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;  // ProductId Mouse Abs
-            HID.Connect();
+            if (_mapping.TryGetValue(gunButton, out var v))
+                return v;
+            return null;
+        }
 
-            if (!HID.Connected)
+        public void Connect()
+        {
+            _hid.OnLog += Log;
+            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;            // VendorId TetherScript
+            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;  // ProductId Mouse Abs
+            _hid.Connect();
+
+            if (!_hid.Connected)
                 throw new Exception("Coud not connect to TetherScript's AbsMouse");
         }
 
-        public static void Disconnect()
+        public void Disconnect()
         {
-            HID.Disconnect();
-            HID.OnLog -= Log;
+            _hid.Disconnect();
+            _hid.OnLog -= Log;
         }
 
         private static void Log(object s, LogArgs e) => Console.WriteLine("Mouse " + e.Msg);
 
-        public static void Send_Data_To_MouseAbs(ushort x, ushort y)
+        public void Send_Data_To_MouseAbs(ushort x, ushort y)
         {
             var data = new SetFeatureMouseAbs
             {
                 ReportID = 1,
                 CommandCode = 2,
-                Buttons = btns,
+                Buttons = _btns,
                 X = x,
                 Y = y
             };
 
             byte[] buf = StructToBytes(data, Marshal.SizeOf(data));
-            HID.SendData(buf, (uint)Marshal.SizeOf(data));
+            _hid.SendData(buf, (uint)Marshal.SizeOf(data));
         }
 
         private static byte[] StructToBytes<T>(T value, int size) where T : struct
@@ -94,12 +93,7 @@ namespace Guncon3Console.TetherScript
             return arr;
         }
 
-        internal static void Feed()
-        {
-            throw new NotSupportedException("Use Feed(IGunState) and pass a per-gun state.");
-        }
-
-        internal static void Feed(IGunState state)
+        public void Feed(IGunState state)
         {
             short absX = 0;
             short absY = 0;
@@ -115,15 +109,15 @@ namespace Guncon3Console.TetherScript
             }
 
             // buttons
-            btns = 0;
-            foreach (var map in Mapping)
+            _btns = 0;
+            foreach (var map in _mapping)
             {
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
-                if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
-                if (map.Value == MouseButton.Right) btns = (byte)(btns | (1 << 1));
-                if (map.Value == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
+                if (map.Value == MouseButton.Left) _btns = (byte)(_btns | 1);
+                if (map.Value == MouseButton.Right) _btns = (byte)(_btns | (1 << 1));
+                if (map.Value == MouseButton.Middle) _btns = (byte)(_btns | (1 << 2));
             }
 
             Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);

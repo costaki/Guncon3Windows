@@ -15,6 +15,8 @@ namespace Guncon3Console.TetherScript
     {
         private readonly HIDController _hid;
 
+        private readonly RelMouseFeeder _feeder = new RelMouseFeeder();
+
         private readonly ToolTip _tip = new ToolTip();
 
         private GunconDevice _gun;
@@ -311,7 +313,7 @@ namespace Guncon3Console.TetherScript
             {
                 ApplyToFeeder();
 
-                int kp = RelMouseFeeder.Kp;
+                int kp = _feeder.Kp;
                 int settleMs = ParseInt(_txtSettle.Text);
                 if (kp < 1) kp = 1;
 
@@ -353,12 +355,12 @@ namespace Guncon3Console.TetherScript
                 var cur = GetCursorPosSafe();
                 int ex = target.X - cur.X;
                 int ey = target.Y - cur.Y;
-                int dz = RelMouseFeeder.DeadzonePx;
+                int dz = _feeder.DeadzonePx;
                 if (dz < 0) dz = 0;
                 if (Math.Abs(ex) <= dz && Math.Abs(ey) <= dz)
                     break;
 
-                int maxStep = RelMouseFeeder.MaxStepPx;
+                int maxStep = _feeder.MaxStepPx;
                 if (maxStep < 1) maxStep = 1;
                 if (maxStep > 127) maxStep = 127;
 
@@ -407,18 +409,18 @@ namespace Guncon3Console.TetherScript
             if (unlock < 0) unlock = 0;
             if (update < 0) update = 0;
 
-            RelMouseFeeder.Kp = kp;
-            RelMouseFeeder.DeadzonePx = dz;
-            RelMouseFeeder.MaxStepPx = maxStep;
-            RelMouseFeeder.MinStepPx = minStep;
-            RelMouseFeeder.SlewLimitPx = slew;
-            RelMouseFeeder.TargetSmoothing = smooth;
-            RelMouseFeeder.DeadzoneUnlockPx = unlock;
-            RelMouseFeeder.UpdateIntervalMs = update;
-            RelMouseFeeder.InvertX = _chkInvertX.Checked;
-            RelMouseFeeder.InvertY = _chkInvertY.Checked;
+            _feeder.Kp = kp;
+            _feeder.DeadzonePx = dz;
+            _feeder.MaxStepPx = maxStep;
+            _feeder.MinStepPx = minStep;
+            _feeder.SlewLimitPx = slew;
+            _feeder.TargetSmoothing = smooth;
+            _feeder.DeadzoneUnlockPx = unlock;
+            _feeder.UpdateIntervalMs = update;
+            _feeder.InvertX = _chkInvertX.Checked;
+            _feeder.InvertY = _chkInvertY.Checked;
 
-            _lblStatus.Text = $"Applied: Kp={kp} Deadzone={dz} Unlock={unlock} MaxStep={maxStep} MinStep={minStep} Slew={slew} Smooth={smooth.ToString("0.00", CultureInfo.InvariantCulture)} UpdateMs={update} InvX={RelMouseFeeder.InvertX} InvY={RelMouseFeeder.InvertY}";
+            _lblStatus.Text = $"Applied: Kp={kp} Deadzone={dz} Unlock={unlock} MaxStep={maxStep} MinStep={minStep} Slew={slew} Smooth={smooth.ToString("0.00", CultureInfo.InvariantCulture)} UpdateMs={update} InvX={_feeder.InvertX} InvY={_feeder.InvertY}";
         }
 
         private static double ParseDouble(string s)
@@ -640,14 +642,21 @@ namespace Guncon3Console.TetherScript
         private void FeedButtonsAndServo(GunState state)
         {
             byte btns = 0;
-            foreach (var map in RelMouseFeeder.Mapping)
+            foreach (GunButton gb in Enum.GetValues(typeof(GunButton)))
             {
-                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
+                if (!state.BtnState.TryGetValue(gb, out bool pressed) || !pressed)
                     continue;
 
-                if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
-                if (map.Value == MouseButton.Right) btns = (byte)(btns | (1 << 1));
-                if (map.Value == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
+                var v = _feeder.GetMapping(gb);
+                if (v == null)
+                    continue;
+
+                if (!(v is MouseButton btn))
+                    continue;
+
+                if (btn == MouseButton.Left) btns = (byte)(btns | 1);
+                if (btn == MouseButton.Right) btns = (byte)(btns | (1 << 1));
+                if (btn == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
             }
 
             var b = Screen.PrimaryScreen.Bounds;
@@ -663,21 +672,21 @@ namespace Guncon3Console.TetherScript
             int ex = tx - cur.X;
             int ey = ty - cur.Y;
 
-            int dz = RelMouseFeeder.DeadzonePx;
+            int dz = _feeder.DeadzonePx;
             if (Math.Abs(ex) <= dz) ex = 0;
             if (Math.Abs(ey) <= dz) ey = 0;
 
-            int kp = RelMouseFeeder.Kp;
+            int kp = _feeder.Kp;
             if (kp < 1) kp = 1;
 
-            int maxStep = RelMouseFeeder.MaxStepPx;
+            int maxStep = _feeder.MaxStepPx;
             if (maxStep < 1) maxStep = 1;
             if (maxStep > 127) maxStep = 127;
 
             int dx = Clamp(ex * kp, -maxStep, maxStep);
             int dy = Clamp(ey * kp, -maxStep, maxStep);
-            if (RelMouseFeeder.InvertX) dx = -dx;
-            if (RelMouseFeeder.InvertY) dy = -dy;
+            if (_feeder.InvertX) dx = -dx;
+            if (_feeder.InvertY) dy = -dy;
 
             var buf = new byte[5];
             buf[0] = 1;

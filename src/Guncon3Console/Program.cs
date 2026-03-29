@@ -7,6 +7,7 @@ using MadWizard.WinUSBNet;
 using GunconUSB;                         // gun reader (GunconUSB project)
 using Guncon3Console.GunStates;        // IGunState and GunPlayerState
 using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
+using Guncon3Console.Feeders;
 using Guncon3Console.WindowsInputFeeders;
 using Guncon3Console.Calibration;          // RectCalib and CalibrationWindow
 
@@ -18,6 +19,12 @@ namespace Guncon3Console
         private static RectCalib _rectP1;
         private static RectCalib _rectP2;
         private static volatile bool _running = true;
+
+        private static readonly AbsMouseFeeder _absMouse = new AbsMouseFeeder();
+        private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
+        private static readonly WindowsInputAbsMouseFeeder _winAbsMouse = new WindowsInputAbsMouseFeeder();
+        private static readonly KeyboardFeeder _keyboard = new KeyboardFeeder();
+        private static readonly GamepadFeeder _gamepad = new GamepadFeeder();
 
         private static GunconDevice _gun1ForCal;
         private static GunconDevice _gun2ForCal;
@@ -226,25 +233,25 @@ namespace Guncon3Console
                 {
                     if (dual)
                     {
-                        AbsMouseFeeder.Feed(p1);
+                        _absMouse.Feed(p1);
                         if (useRelMouse)
-                            RelMouseFeeder.Feed(p2);
+                            _relMouse.Feed(p2);
                         else
-                            WindowsInputAbsMouseFeeder.Feed(p2);
+                            _winAbsMouse.Feed(p2);
 
-                        KeyboardFeeder.Feed(p1);
-                        KeyboardFeeder.Feed(p2);
+                        _keyboard.Feed(p1);
+                        _keyboard.Feed(p2);
                     }
                     else
                     {
                         if (useRelMouse)
-                            RelMouseFeeder.Feed(p1);
+                            _relMouse.Feed(p1);
                         else if (useWindowsInputAbs)
-                            WindowsInputAbsMouseFeeder.Feed(p1);
+                            _winAbsMouse.Feed(p1);
                         else
-                            AbsMouseFeeder.Feed(p1);
+                            _absMouse.Feed(p1);
 
-                        KeyboardFeeder.Feed(p1);
+                        _keyboard.Feed(p1);
                     }
                 }
                 catch { }
@@ -280,11 +287,11 @@ namespace Guncon3Console
 
                 Thread.Sleep(1);
             }
-            try { if (useRelMouse) RelMouseFeeder.Disconnect(); } catch { }
-            try { if (dual || useWindowsInputAbs) WindowsInputAbsMouseFeeder.Disconnect(); } catch { }
-            try { AbsMouseFeeder.Disconnect(); } catch { }
-            try { if (dual) GamepadFeeder.Disconnect(); } catch { }
-            try { KeyboardFeeder.Disconnect(); } catch { }
+            try { if (useRelMouse) _relMouse.Disconnect(); } catch { }
+            try { if (dual || useWindowsInputAbs) _winAbsMouse.Disconnect(); } catch { }
+            try { _absMouse.Disconnect(); } catch { }
+            try { if (dual) _gamepad.Disconnect(); } catch { }
+            try { _keyboard.Disconnect(); } catch { }
             try { gun1?.Dispose(); } catch { }
             try { gun2?.Dispose(); } catch { }
         }
@@ -353,19 +360,19 @@ namespace Guncon3Console
                 if (dual)
                 {
                     Console.WriteLine("TetherScript Absolute Mouse for Player 1 connecting...");
-                    AbsMouseFeeder.Connect();
+                    _absMouse.Connect();
                     Console.WriteLine("TetherScript Absolute Mouse for Player 1 connected.");
 
                     if (useRelMouse)
                     {
                         Console.WriteLine("TetherScript Relative Mouse for Player 2 connecting...");
-                        RelMouseFeeder.Connect();
+                        _relMouse.Connect();
                         Console.WriteLine("TetherScript Relative Mouse for Player 2 connected.");
                     }
                     else
                     {
                         Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connecting...");
-                        WindowsInputAbsMouseFeeder.Connect();
+                        _winAbsMouse.Connect();
                         Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connected.");
                     }
                 }
@@ -374,19 +381,19 @@ namespace Guncon3Console
                     if (useRelMouse)
                     {
                         Console.WriteLine("TetherScript Relative Mouse connecting...");
-                        RelMouseFeeder.Connect();
+                        _relMouse.Connect();
                         Console.WriteLine("TetherScript Relative Mouse connected.");
                     }
                     else if (useWindowsInputAbs)
                     {
                         Console.WriteLine("WindowsInput Absolute Mouse connecting...");
-                        WindowsInputAbsMouseFeeder.Connect();
+                        _winAbsMouse.Connect();
                         Console.WriteLine("WindowsInput Absolute Mouse connected.");
                     }
                     else
                     {
                         Console.WriteLine("TetherScript Absolute Mouse for connecting...");
-                        AbsMouseFeeder.Connect();
+                        _absMouse.Connect();
                         Console.WriteLine("TetherScript Absolute Mouse for connected.");
                     }
                 }
@@ -399,7 +406,7 @@ namespace Guncon3Console
             try
             {
                 Console.WriteLine("TetherScript Keyboard connecting...");
-                KeyboardFeeder.Connect();
+                _keyboard.Connect();
                 Console.WriteLine("TetherScript Keyboard connected.");
             }
             catch (Exception ex)
@@ -410,11 +417,11 @@ namespace Guncon3Console
 
         private static void LoadMapping(string path, bool dual, bool useRelMouse, bool useWindowsInputAbs)
         {
-            AbsMouseFeeder.Mapping.Clear();
-            KeyboardFeeder.Mapping.Clear();
-            RelMouseFeeder.Mapping.Clear();
-            GamepadFeeder.Mapping.Clear();
-            WindowsInputAbsMouseFeeder.Mapping.Clear();
+            _absMouse.ClearMapping();
+            _keyboard.ClearMapping();
+            _relMouse.ClearMapping();
+            _gamepad.ClearMapping();
+            _winAbsMouse.ClearMapping();
 
             if (!File.Exists(path))
             {
@@ -455,16 +462,16 @@ namespace Guncon3Console
                 else if (device == "KEYBOARD")
                 {
                     if (byte.TryParse(cmd, out var keyCode))
-                        KeyboardFeeder.Mapping[gunBtn] = keyCode;
+                        _keyboard.AddMapping(gunBtn, keyCode);
                 }
                 else if (device == "GAMEPAD")
                 {
                     if (int.TryParse(cmd, out var btnBit))
-                        GamepadFeeder.Mapping[gunBtn] = btnBit;
+                        _gamepad.AddMapping(gunBtn, btnBit);
                 }
             }
 
-            Console.WriteLine($"[Mapping] Mouse: {AbsMouseFeeder.Mapping.Count} entries, Mouse2: {RelMouseFeeder.Mapping.Count} entries, Gamepad2: {GamepadFeeder.Mapping.Count} entries, Keyboard: {KeyboardFeeder.Mapping.Count} entries.");
+            Console.WriteLine($"[Mapping] Mouse: {_absMouse.MappingCount()} entries, Mouse2: {_relMouse.MappingCount()} entries, Gamepad2: {_gamepad.MappingCount()} entries, Keyboard: {_keyboard.MappingCount()} entries.");
         }
 
         private static void MapMouseInput(string device, string command, GunButton gunButton, bool dual, bool useRelMouse, bool useWindowsInputAbs)
@@ -482,29 +489,29 @@ namespace Guncon3Console
             if ((isMouse1 && dual) || (isMouse1 && !dual && !useRelMouse && !useWindowsInputAbs))
             {
                 if (isLeft)
-                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Left;
+                    _absMouse.AddMapping(gunButton, MouseButton.Left);
                 else if (isRight)
-                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Right;
+                    _absMouse.AddMapping(gunButton, MouseButton.Right);
                 else if (isMiddle)
-                    AbsMouseFeeder.Mapping[gunButton] = MouseButton.Middle;
+                    _absMouse.AddMapping(gunButton, MouseButton.Middle);
             }
             else if ((isMouse2 && dual && useRelMouse) || (isMouse1 && !dual && useRelMouse))
             {
                 if (isLeft)
-                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Left;
+                    _relMouse.AddMapping(gunButton, MouseButton.Left);
                 else if (isRight)
-                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Right;
+                    _relMouse.AddMapping(gunButton, MouseButton.Right);
                 else if (isMiddle)
-                    RelMouseFeeder.Mapping[gunButton] = MouseButton.Middle;
+                    _relMouse.AddMapping(gunButton, MouseButton.Middle);
             }
             else if ((isMouse2 && dual && !useRelMouse) || (isMouse1 && !dual && useWindowsInputAbs))
             {
                 if (isLeft)
-                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.LeftButton;
+                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.LeftButton);
                 else if (isRight)
-                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.RightButton;
+                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.RightButton);
                 else if (isMiddle)
-                    WindowsInputAbsMouseFeeder.Mapping[gunButton] = WindowsInput.MouseButton.MiddleButton;
+                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.MiddleButton);
             }
         }
 
