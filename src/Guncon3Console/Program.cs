@@ -76,8 +76,12 @@ namespace Guncon3Console
             //
             // Options:
             //  - test           => open test window showing gun input state (still feeds output)
-            //  - relmouse       => single-gun: feed TetherScript Virtual Mouse Rel
-            //  - wininputabs    => single-gun: feed WindowsInput AbsMouse instead of TetherScript AbsMouse
+            //  - relmouse       => output routing flag:
+            //                     * SINGLE: applies to P1 (uses TetherScript Relative Mouse)
+            //                     * DUAL:   applies to P2 (uses TetherScript Relative Mouse)
+            //  - wininputabs    => output routing flag:
+            //                     * SINGLE: applies to P1 (uses WindowsInput Absolute Mouse)
+            //                     * DUAL:   ignored (P2 already uses WindowsInput AbsMouse when not using relmouse)
             bool dual = !args.Any(a => a.Equals("single", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
@@ -174,10 +178,55 @@ namespace Guncon3Console
                 return;
             }
 
-            TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
+            TryConnectFeeders(dual);
 
-            _player1 = new GunState(Player.Player1, _gun1, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
-            _player2 = dual ? new GunState(Player.Player2, _gun2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
+            IMouseFeeder p1MouseFeeder;
+            IKeyboardFeeder p1KeyboardFeeder;
+            IMouseFeeder p2MouseFeeder = null;
+            IKeyboardFeeder p2KeyboardFeeder = null;
+            if (!dual)
+            {
+                if (useRelMouse)
+                {
+                    p1MouseFeeder = _relMouse;
+                    p1KeyboardFeeder = _keyboard;
+                    Console.WriteLine("[Mode] SINGLE mode with TetherScript Relative Mouse & Keyboard output.");
+                }
+                else if (useWindowsInputAbs)
+                {
+                    p1MouseFeeder = _winAbsMouse;
+                    p1KeyboardFeeder = _winKeyboard;
+                    Console.WriteLine("[Mode] SINGLE mode with WindowsInput Absolute Mouse & Keyboard output.");
+                }
+                else
+                {
+                    p1MouseFeeder = _absMouse;
+                    p1KeyboardFeeder = _keyboard;
+                    Console.WriteLine("[Mode] SINGLE mode with TetherScript Absolute Mouse & Keyboard output.");
+                }
+            }
+            else
+            {
+                p1MouseFeeder = _relMouse;
+                p1KeyboardFeeder = _keyboard;
+                Console.WriteLine("[Mode] DUAL mode with Player 1 / Gun 1 - TetherScript Relative Mouse & Keyboard output.");
+                if (useRelMouse)
+                {
+                    p2MouseFeeder = _relMouse;
+                    p2KeyboardFeeder = _winKeyboard;
+                    Console.WriteLine("[Mode] DUAL mode with Player 2 / Gun 2 - TetherScript Relative Mouse & WindowsInput Keyboard output.");
+                }
+                else
+                {
+                    p2MouseFeeder = _winAbsMouse;
+                    p2KeyboardFeeder = _winKeyboard;
+                    Console.WriteLine("[Mode] DUAL mode with Player 2 / Gun 2 - WindowsInput Absolute Mouse & Keyboard output.");
+                }
+
+            }
+
+            _player1 = new GunState(Player.Player1, _gun1, mouseFeeder: p1MouseFeeder, keyboardFeeder: p1KeyboardFeeder);
+            _player2 = dual ? new GunState(Player.Player2, _gun2, mouseFeeder: p2MouseFeeder, keyboardFeeder: p2KeyboardFeeder) : null;
 
             LoadMappingsJson(dual, logOnly: true);
 
@@ -282,8 +331,12 @@ namespace Guncon3Console
                         try
                         {
                             var p1 = _player1.MappingPath;
-                            var p2 = _player2.MappingPath;
-                            using (var w = new Guncon3Console.Mapping.MappingEditorForm(p1, p2, enablePlayer2: dual, player1Device: _gun1, player2Device: _gun2))
+                            var p2 = _player2?.MappingPath;
+
+                            var p1Feeders = $"Mouse={p1MouseFeeder?.Name ?? "(none)"}, Keyboard={p1KeyboardFeeder?.Name ?? "(none)"}";
+                            var p2Feeders = dual ? $"Mouse={p2MouseFeeder?.Name ?? "(none)"}, Keyboard={p2KeyboardFeeder?.Name ?? "(none)"}" : null;
+
+                            using (var w = new Guncon3Console.Mapping.MappingEditorForm(p1, p2, enablePlayer2: dual, player1Device: _gun1, player2Device: _gun2, player1Feeders: p1Feeders, player2Feeders: p2Feeders))
                                 w.ShowDialog();
                             LoadMappingsJson(dual, logOnly: false);
                         }
@@ -339,33 +392,39 @@ namespace Guncon3Console
             Console.WriteLine($"[Calibration - {modeString} mode] {gunString} calibration reloaded: " + gunState.Calibration.CalibrationPath);
         }
 
-        private static void TryConnectFeeders(bool useRelMouse, bool dual, bool useWindowsInputAbs)
+        private static void TryConnectFeeders(bool dual)
         {
             try
             {
-                Console.WriteLine("[FeederConnect] TetherScript Absolute Mouse connecting...");
+                Console.WriteLine("[Feeder Connection] TetherScript Absolute Mouse connecting...");
                 _absMouse.Connect();
-                Console.WriteLine("[FeederConnect] TetherScript Absolute Mouse connected.");
+                Console.WriteLine("[Feeder Connection] TetherScript Absolute Mouse connected.");
 
-                Console.WriteLine("[FeederConnect] TetherScript Relative Mouse connecting...");
+                Console.WriteLine("[Feeder Connection] TetherScript Relative Mouse connecting...");
                 _relMouse.Connect();
-                Console.WriteLine("[FeederConnect] TetherScript Relative Mouse connected.");
+                Console.WriteLine("[Feeder Connection] TetherScript Relative Mouse connected.");
 
-                Console.WriteLine("[FeederConnect] TetherScript Keyboard connecting...");
+                Console.WriteLine("[Feeder Connection] TetherScript Keyboard connecting...");
                 _keyboard.Connect();
-                Console.WriteLine("[FeederConnect] TetherScript Keyboard connected.");
+                Console.WriteLine("[Feeder Connection] TetherScript Keyboard connected.");
 
-                Console.WriteLine("[FeederConnect] WindowsInput Absolute Mouse connecting...");
+                Console.WriteLine("[Feeder Connection] WindowsInput Absolute Mouse connecting...");
                 _winAbsMouse.Connect();
-                Console.WriteLine("[FeederConnect] WindowsInput Absolute Mouse connected.");
+                Console.WriteLine("[Feeder Connection] WindowsInput Absolute Mouse connected.");
 
-                Console.WriteLine("[FeederConnect] WindowsInput Keyboard connecting...");
+                Console.WriteLine("[Feeder Connection] WindowsInput Keyboard connecting...");
                 _winKeyboard.Connect();
-                Console.WriteLine("[FeederConnect] WindowsInput Keyboard connected.");
+                Console.WriteLine("[Feeder Connection] WindowsInput Keyboard connected.");
+
+                if (!_absMouse.IsConnected || !_relMouse.IsConnected || !_keyboard.IsConnected || (dual && (!_winAbsMouse.IsConnected || !_winKeyboard.IsConnected)))
+                {
+                    FailAndExit("[Feeder Connection] Could not connect to all feeders. Check that TetherScript and WindowsInput feeder services are running, and that the devices are properly configured in TetherScript.");
+                    return;
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[FeederConnect] Connect fail:\n" + ex);
+                Console.WriteLine("[Feeder Connection] Connect fail:\n" + ex);
             }
         }
 
@@ -418,8 +477,12 @@ namespace Guncon3Console
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  test         Open a test window showing gun input state.");
-            Console.WriteLine("  relmouse     Single-gun: use TetherScript relative mouse output.");
-            Console.WriteLine("  wininputabs  Single-gun: use WindowsInput absolute mouse output.");
+            Console.WriteLine("  relmouse     Output routing flag:");
+            Console.WriteLine("               - SINGLE: affects P1 (TetherScript Relative Mouse)");
+            Console.WriteLine("               - DUAL:   affects P2 (TetherScript Relative Mouse)");
+            Console.WriteLine("  wininputabs  Output routing flag:");
+            Console.WriteLine("               - SINGLE: affects P1 (WindowsInput Absolute Mouse)");
+            Console.WriteLine("               - DUAL:   ignored (P2 already uses WindowsInput AbsMouse when not using relmouse)");
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  help|-h|/?   Show this help and exit.");

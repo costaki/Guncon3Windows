@@ -18,6 +18,9 @@ namespace Guncon3Console.Mapping
         private readonly GunconDevice _p1Device;
         private readonly GunconDevice _p2Device;
 
+        private readonly string _p1Feeders;
+        private readonly string _p2Feeders;
+
         private readonly DataGridView _gridP1;
         private readonly DataGridView _gridP2;
 
@@ -28,13 +31,15 @@ namespace Guncon3Console.Mapping
 
         private bool _dirty;
 
-        public MappingEditorForm(string player1Path, string player2Path, bool enablePlayer2, GunconDevice player1Device = null, GunconDevice player2Device = null)
+        public MappingEditorForm(string player1Path, string player2Path, bool enablePlayer2, GunconDevice player1Device = null, GunconDevice player2Device = null, string player1Feeders = null, string player2Feeders = null)
         {
             _p1Path = player1Path ?? throw new ArgumentNullException(nameof(player1Path));
             _p2Path = player2Path;
             _enableP2 = enablePlayer2;
             _p1Device = player1Device;
             _p2Device = player2Device;
+            _p1Feeders = player1Feeders;
+            _p2Feeders = player2Feeders;
 
             Text = "Guncon3 Mapping Editor";
             StartPosition = FormStartPosition.CenterScreen;
@@ -83,12 +88,23 @@ namespace Guncon3Console.Mapping
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2
+                RowCount = 3
             };
+            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            panel.Controls.Add(grid, 0, 0);
+            var feeders = (player == 1 ? _p1Feeders : _p2Feeders) ?? string.Empty;
+            var lblFeeders = new Label
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Padding = new Padding(0, 0, 0, 6),
+                Text = string.IsNullOrWhiteSpace(feeders) ? string.Empty : ("Output: " + feeders)
+            };
+            panel.Controls.Add(lblFeeders, 0, 0);
+
+            panel.Controls.Add(grid, 0, 1);
 
             var buttons = new FlowLayoutPanel
             {
@@ -97,7 +113,7 @@ namespace Guncon3Console.Mapping
                 AutoSize = true,
                 WrapContents = true
             };
-            panel.Controls.Add(buttons, 0, 1);
+            panel.Controls.Add(buttons, 0, 2);
 
             // Player-specific buttons first
             var btnCalibrate = new Button { Text = player == 1 ? "Calibrate P1" : "Calibrate P2", AutoSize = true };
