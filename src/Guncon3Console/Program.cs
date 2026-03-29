@@ -46,8 +46,8 @@ namespace Guncon3Console
             //  - wininputabs => single-gun mode, feed WindowsInput absolute mouse instead of TetherScript AbsMouse
             bool dual = args.Any(a => a.Equals("dual", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
-            bool useRelMouse = (!dual && args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
-            bool useWindowsInputAbs = (!dual && !useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
+            bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
+            bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
 
             // === "keys": show keycode table and exit ===
             if (args.Length > 0 && args[0].Equals("keys", StringComparison.OrdinalIgnoreCase))
