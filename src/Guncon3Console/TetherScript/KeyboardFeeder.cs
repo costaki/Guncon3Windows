@@ -101,7 +101,7 @@ namespace Guncon3Console.TetherScript
                 Key5 = Key5
             };
 
-            byte[] buf = GetBytes(data, Marshal.SizeOf(data));
+            byte[] buf = TetherScriptMarshal.StructToBytes(data);
             _hid.SendData(buf, (uint)buf.Length);
         }
 
@@ -113,21 +113,8 @@ namespace Guncon3Console.TetherScript
                 CommandCode = 3,
                 Timeout = _fTimeout / 5
             };
-            byte[] buf = GetBytes(data, Marshal.SizeOf(data));
+            byte[] buf = TetherScriptMarshal.StructToBytes(data);
             _hid.SendData(buf, (uint)buf.Length);
-        }
-
-        private static byte[] GetBytes(SetFeatureKeyboard sfj, int size)
-        {
-            byte[] arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            try
-            {
-                Marshal.StructureToPtr(sfj, ptr, false);
-                Marshal.Copy(ptr, arr, 0, size);
-            }
-            finally { Marshal.FreeHGlobal(ptr); }
-            return arr;
         }
 
         // Hold keys: no "machine-gun" repeats

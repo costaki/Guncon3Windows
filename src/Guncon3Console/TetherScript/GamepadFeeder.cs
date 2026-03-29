@@ -95,21 +95,8 @@ namespace Guncon3Console.TetherScript
                 RY = 0
             };
 
-            byte[] buf = StructToBytes(data, Marshal.SizeOf(data));
-            _hid.SendData(buf, (uint)Marshal.SizeOf(data));
-        }
-
-        private static byte[] StructToBytes<T>(T value, int size) where T : struct
-        {
-            byte[] arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            try
-            {
-                Marshal.StructureToPtr(value, ptr, false);
-                Marshal.Copy(ptr, arr, 0, size);
-            }
-            finally { Marshal.FreeHGlobal(ptr); }
-            return arr;
+            byte[] buf = TetherScriptMarshal.StructToBytes(data);
+            _hid.SendData(buf, (uint)buf.Length);
         }
     }
 
