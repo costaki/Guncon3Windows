@@ -113,7 +113,7 @@
     <Compile Include="Feeders\IFeeder.cs" />
     <Compile Include="Feeders\IMouseFeeder.cs" />
     <Compile Include="Feeders\ITetherScriptFeeder.cs" />
-    <Compile Include="GunStates\GunPlayerState.cs" />
+    <Compile Include="GunStates\GunState.cs" />
     <Compile Include="GunStates\IGunState.cs" />
     <Compile Include="Calibration\RectCalib.cs" />
     <Compile Include="Calibration\TestWindow.cs">
