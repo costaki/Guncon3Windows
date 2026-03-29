@@ -1,24 +1,50 @@
 ﻿using System;
-using System.Globalization;
 using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+
 
 namespace Guncon3Console.Calibration
 {
-    using System.Collections.Generic;
     /// <summary>
     /// Minimal rectangular calibration: maps RAW_X/RAW_Y (gun raw range)
     /// into screen space (0..ScreenW-1, 0..ScreenH-1).
     /// </summary>
+    [DataContract]
     public class RectCalib
     {
+        public const string DefaultFileName = "calibration_rect.json";
+        public const string Player1FileName = "calibration_rect_p1.json";
+        public const string Player2FileName = "calibration_rect_p2.json";
+
+        [IgnoreDataMember]
+        public string CalibrationPath { get; private set; }
+
+        [DataMember(Order = 1)]
         public double RawMinX { get; set; }
+        [DataMember(Order = 2)]
         public double RawMaxX { get; set; }
+        [DataMember(Order = 3)]
         public double RawMinY { get; set; }
+        [DataMember(Order = 4)]
         public double RawMaxY { get; set; }
+        [DataMember(Order = 5)]
         public int ScreenW { get; set; }
+        [DataMember(Order = 6)]
         public int ScreenH { get; set; }
+        [DataMember(Order = 7)]
         public bool InvertY { get; set; }
-        public string CalibrationFile { get; set; }
+
+        public RectCalib(string calibrationPath)
+        {
+            if (string.IsNullOrWhiteSpace(calibrationPath))
+                throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
+            CalibrationPath = calibrationPath;
+        }
+
+        private RectCalib()
+        {
+        }
 
         /// <summary>Has valid ranges and a valid screen size?</summary>
         public bool IsValid()
@@ -48,65 +74,38 @@ namespace Guncon3Console.Calibration
             return (sx, sy);
         }
 
-        /// <summary>Saves to calibration_rect.txt (next to the EXE by default).</summary>
-        public void Save(string path = null)
+        public void Save()
         {
-            if (path == null)
-                path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibrationFile ?? "calibration_rect.txt");
-
-            using (var sw = new StreamWriter(path, false))
-            {
-                var ci = CultureInfo.InvariantCulture;
-
-                sw.WriteLine("RawMinX=" + RawMinX.ToString("R", ci));
-                sw.WriteLine("RawMaxX=" + RawMaxX.ToString("R", ci));
-                sw.WriteLine("RawMinY=" + RawMinY.ToString("R", ci));
-                sw.WriteLine("RawMaxY=" + RawMaxY.ToString("R", ci));
-                sw.WriteLine("ScreenW=" + ScreenW.ToString(ci));
-                sw.WriteLine("ScreenH=" + ScreenH.ToString(ci));
-                sw.WriteLine("InvertY=" + (InvertY ? "1" : "0"));
-            }
+            var ser = new DataContractJsonSerializer(typeof(RectCalib));
+            using (var fs = File.Create(CalibrationPath))
+                ser.WriteObject(fs, this);
         }
 
-        /// <summary>Loads from calibration_rect.txt. Returns null if missing or invalid.</summary>
-        public static RectCalib Load(string path = null)
+        /// <summary>Loads from the given path. Returns null if missing or invalid.</summary>
+        public static RectCalib Load(string calibrationPath)
         {
-            if (path == null)
-                path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "calibration_rect.txt");
+            if (string.IsNullOrWhiteSpace(calibrationPath))
+                throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
 
-            if (!File.Exists(path))
+            if (!File.Exists(calibrationPath))
                 return null;
 
-            var rc = new RectCalib();
-            var ci = CultureInfo.InvariantCulture;
-
-            foreach (var rawLine in File.ReadAllLines(path))
+            try
             {
-                var line = rawLine?.Trim();
-                if (line.StartsWith("KEYBOARD")) continue; // Skip keyboard mappings
-                if (string.IsNullOrEmpty(line) || line.StartsWith("#"))
-                    continue;
-
-                var eq = line.IndexOf('=');
-                if (eq <= 0) continue;
-
-                var key = line.Substring(0, eq).Trim();
-                var val = line.Substring(eq + 1).Trim();
-
-                switch (key)
+                var ser = new DataContractJsonSerializer(typeof(RectCalib));
+                using (var fs = File.OpenRead(calibrationPath))
                 {
-                    case "RawMinX": if (double.TryParse(val, NumberStyles.Float, ci, out var rminx)) rc.RawMinX = rminx; break;
-                    case "RawMaxX": if (double.TryParse(val, NumberStyles.Float, ci, out var rmaxx)) rc.RawMaxX = rmaxx; break;
-                    case "RawMinY": if (double.TryParse(val, NumberStyles.Float, ci, out var rminy)) rc.RawMinY = rminy; break;
-                    case "RawMaxY": if (double.TryParse(val, NumberStyles.Float, ci, out var rmaxy)) rc.RawMaxY = rmaxy; break;
-                    case "ScreenW": if (int.TryParse(val, NumberStyles.Integer, ci, out var sw)) rc.ScreenW = sw; break;
-                    case "ScreenH": if (int.TryParse(val, NumberStyles.Integer, ci, out var sh)) rc.ScreenH = sh; break;
-                    case "InvertY": rc.InvertY = (val == "1" || val.Equals("true", StringComparison.OrdinalIgnoreCase)); break;
+                    var rc = (RectCalib)ser.ReadObject(fs);
+                    if (rc == null || !rc.IsValid())
+                        return null;
+                    rc.CalibrationPath = calibrationPath;
+                    return rc;
                 }
             }
-
-            // Add support for per-gun calibration files
-            return rc.IsValid() ? rc : null;
+            catch
+            {
+                return null;
+            }
         }
     }
 }

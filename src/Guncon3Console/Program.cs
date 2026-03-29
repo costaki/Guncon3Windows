@@ -4,12 +4,12 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Linq;
 using MadWizard.WinUSBNet;
-using GunconUSB;                         // gun reader (GunconUSB project)
-using Guncon3Console.GunStates;        // IGunState and GunPlayerState
-using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
+using GunconUSB;
+using Guncon3Console.GunStates;
+using Guncon3Console.TetherScript;
 using Guncon3Console.Feeders;
 using Guncon3Console.WindowsInput;
-using Guncon3Console.Calibration;          // RectCalib and CalibrationWindow
+using Guncon3Console.Calibration;
 
 namespace Guncon3Console
 {
@@ -29,9 +29,9 @@ namespace Guncon3Console
         private static GunconDevice _gun1ForCal;
         private static GunconDevice _gun2ForCal;
 
-        private const string CalibDefault = "calibration_rect.txt";
-        private const string CalibP1 = "calibration_rect_p1.txt";
-        private const string CalibP2 = "calibration_rect_p2.txt";
+        private const string CalibDefault = RectCalib.DefaultFileName;
+        private const string CalibP1 = RectCalib.Player1FileName;
+        private const string CalibP2 = RectCalib.Player2FileName;
 
         [STAThread]
         private static void Main(string[] args)
@@ -179,7 +179,7 @@ namespace Guncon3Console
             }
             else
             {
-                _rect = RectCalib.Load();
+                _rect = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault));
 
                 if (_rect == null || !_rect.IsValid())
                 {
@@ -334,7 +334,7 @@ namespace Guncon3Console
             Console.WriteLine("[Calibration] Opening window (F12)...");
             LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating", _gun1ForCal);
 
-            _rect = RectCalib.Load();
+            _rect = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault));
 
             Console.WriteLine("[Calibration] Reloaded: " + CalibDefault);
         }

@@ -210,7 +210,7 @@ namespace Guncon3Console.Calibration
                 int W = Screen.PrimaryScreen.Bounds.Width;
                 int H = Screen.PrimaryScreen.Bounds.Height;
 
-                var rc = new RectCalib
+                var rc = new RectCalib(_savePath)
                 {
                     RawMinX = (int)Math.Round(minX),
                     RawMaxX = (int)Math.Round(maxX),
@@ -221,7 +221,7 @@ namespace Guncon3Console.Calibration
                     InvertY = true
                 };
 
-                rc.Save(_savePath);
+                rc.Save();
 
                 _rectForCheck = rc;
                 _checking = true;
