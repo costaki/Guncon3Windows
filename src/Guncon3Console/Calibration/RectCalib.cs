@@ -74,6 +74,27 @@ namespace Guncon3Console.Calibration
             return (sx, sy);
         }
 
+        private (short X, short Y) Apply(double mappedX, double mappedY)
+        {
+            double nx = (ScreenW > 1) ? (mappedX / (ScreenW - 1)) : 0.0;
+            double ny = (ScreenH > 1) ? (mappedY / (ScreenH - 1)) : 0.0;
+            if (nx < 0) nx = 0; if (nx > 1) nx = 1;
+            if (ny < 0) ny = 0; if (ny > 1) ny = 1;
+
+
+            short sx = (short)Math.Round(nx * 32767.0);
+            short sy = (short)Math.Round(ny * 32767.0);
+            return (sx, sy);
+        }
+
+        public (short X, short Y) ApplyCalibration(short rawX, short rawY)
+        {
+            if (!IsValid())
+                return (rawX, rawY);
+            var (mx, my) = Map(rawX, rawY);
+            return Apply(mx, my);
+        }
+
         public void Save()
         {
             var ser = new DataContractJsonSerializer(typeof(RectCalib));
@@ -105,6 +126,33 @@ namespace Guncon3Console.Calibration
             catch
             {
                 return null;
+            }
+        }
+
+        public void Refresh()
+        {
+            try
+            {
+                var ser = new DataContractJsonSerializer(typeof(RectCalib));
+                using (var fs = File.OpenRead(CalibrationPath))
+                {
+                    var rc = (RectCalib)ser.ReadObject(fs);
+                    if (rc == null || !rc.IsValid())
+                        throw new Exception("Failed to refresh calibration: invalid data.");
+                    this.CalibrationPath = rc.CalibrationPath;
+                    this.RawMinX = rc.RawMinX;
+                    this.RawMaxX = rc.RawMaxX;
+                    this.RawMinY = rc.RawMinY;
+                    this.RawMaxX = rc.RawMaxY;
+                    this.ScreenW = rc.ScreenW;
+                    this.ScreenH = rc.ScreenH;
+                    this.InvertY = rc.InvertY;
+                    rc = null;
+                }
+            }
+            catch
+            {
+                throw;
             }
         }
     }

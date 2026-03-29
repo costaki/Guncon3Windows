@@ -16,7 +16,7 @@ namespace Guncon3Console.Calibration
         private readonly string _label;
         private readonly GunconDevice _device;
         private readonly bool _ownsDevice;
-        private readonly Dictionary<GunButton, bool> _btn = new Dictionary<GunButton, bool>();
+        private Dictionary<GunButton, bool> _btn = new Dictionary<GunButton, bool>();
         private short _absX;
         private short _absY;
         private PointF[] _targets = Array.Empty<PointF>();
@@ -87,7 +87,7 @@ namespace Guncon3Console.Calibration
         {
             try
             {
-                _device.ReadInto(_btn, out _absX, out _absY, out var _);
+                _device.Read(out _btn, out _absX, out _absY, out var _);
             }
             catch { }
         }

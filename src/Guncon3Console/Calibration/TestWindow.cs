@@ -12,8 +12,8 @@ namespace Guncon3Console.Calibration
         private readonly Timer _poll;
         private readonly GunconDevice _gun1;
         private readonly GunconDevice _gun2;
-        private readonly Dictionary<GunButton, bool> _btn1 = new Dictionary<GunButton, bool>();
-        private readonly Dictionary<GunButton, bool> _btn2 = new Dictionary<GunButton, bool>();
+        private Dictionary<GunButton, bool> _btn1 = new Dictionary<GunButton, bool>();
+        private Dictionary<GunButton, bool> _btn2 = new Dictionary<GunButton, bool>();
         private short _x1, _y1, _x2, _y2;
         private byte _rx1, _ry1, _rx2, _ry2;
         private byte _lx1, _ly1, _lx2, _ly2;
@@ -55,7 +55,7 @@ namespace Guncon3Console.Calibration
                 {
                     if (_gun1 != null)
                     {
-                        try { _gun1.ReadInto(_btn1, out _x1, out _y1, out _ind2_1); } catch { }
+                        try { _gun1.Read(out _btn1, out _x1, out _y1, out _ind2_1); } catch { }
                         try { _gun1.TryReadDecoded(out _dec1); } catch { }
                         if (_dec1 != null && _dec1.Length > 3)
                         {
@@ -68,7 +68,7 @@ namespace Guncon3Console.Calibration
                     }
                     if (_gun2 != null)
                     {
-                        try { _gun2.ReadInto(_btn2, out _x2, out _y2, out _ind2_2); } catch { }
+                        try { _gun2.Read(out _btn2, out _x2, out _y2, out _ind2_2); } catch { }
                         try { _gun2.TryReadDecoded(out _dec2); } catch { }
                         if (_dec2 != null && _dec2.Length > 3)
                         {

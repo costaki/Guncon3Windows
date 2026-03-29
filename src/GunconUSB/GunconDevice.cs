@@ -45,9 +45,9 @@ namespace GunconUSB
             try { _device?.Dispose(); } catch { }
         }
 
-        public void ReadInto(Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool indicator2)
+        public void Read(out Dictionary<GunButton, bool> btnState, out short absX, out short absY, out bool screenIndicator)
         {
-            if (btnState == null) throw new ArgumentNullException(nameof(btnState));
+            btnState = new Dictionary<GunButton, bool>();
 
             // Ensure all keys exist so callers can pass a fresh Dictionary per device.
             foreach (GunButton b in Enum.GetValues(typeof(GunButton)))
@@ -77,7 +77,7 @@ namespace GunconUSB
             absY = (short)(decoded[6] * 256 + decoded[7]);
             absX = (short)(decoded[8] * 256 + decoded[9]);
 
-            indicator2 = (decoded[11] & 0x08) != 0;
+            screenIndicator = (decoded[11] & 0x08) != 0;
 
             const int DEAD = 20;
             int lx = decoded[3];

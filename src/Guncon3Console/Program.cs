@@ -29,6 +29,9 @@ namespace Guncon3Console
         private static GunconDevice _gun1ForCal;
         private static GunconDevice _gun2ForCal;
 
+        private static GunState _player1;
+        private static GunState _player2;
+
         private const string CalibDefault = RectCalib.DefaultFileName;
         private const string CalibP1 = RectCalib.Player1FileName;
         private const string CalibP2 = RectCalib.Player2FileName;
@@ -200,8 +203,8 @@ namespace Guncon3Console
             Console.WriteLine("Mapping OK.");
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
-            var p1 = new GunState();
-            var p2 = dual ? new GunState() : null;
+            _player1 = new GunState(gun1, dual ? _rectP1 : _rect);
+            _player2 = dual ? new GunState(gun2, _rectP2) : null;
 
             // Test window is launched modally via Application.Run when requested.
 
@@ -209,49 +212,37 @@ namespace Guncon3Console
             {
                 if (dual)
                 {
-                    // Read both guns into per-player state
-                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1Ind2);
-                    gun2.ReadInto(p2.BtnState, out var g2x, out var g2y, out var g2Ind2);
-
-                    p1.INDICATOR2 = g1Ind2;
-                    p2.INDICATOR2 = g2Ind2;
-
-                    // Apply the same rectangular calibration to both
-                    ApplyRectCalib(_rectP1, p1, g1x, g1y);
-                    ApplyRectCalib(_rectP2, p2, g2x, g2y);
+                    _player1.Update();
+                    _player2.Update();
                 }
                 else
                 {
-                    gun1.ReadInto(p1.BtnState, out var g1x, out var g1y, out var g1Ind2);
-
-                    p1.INDICATOR2 = g1Ind2;
-
-                    ApplyRectCalib(_rect, p1, g1x, g1y);
+                    _player1.Update();
                 }
 
                 try
                 {
                     if (dual)
                     {
-                        _absMouse.Feed(p1);
+                        _absMouse.Feed(_player1);
                         if (useRelMouse)
-                            _relMouse.Feed(p2);
+                            _relMouse.Feed(_player2);
                         else
-                            _winAbsMouse.Feed(p2);
+                            _winAbsMouse.Feed(_player2);
 
-                        _keyboard.Feed(p1);
-                        _keyboard.Feed(p2);
+                        _keyboard.Feed(_player1);
+                        _keyboard.Feed(_player2);
                     }
                     else
                     {
                         if (useRelMouse)
-                            _relMouse.Feed(p1);
+                            _relMouse.Feed(_player1);
                         else if (useWindowsInputAbs)
-                            _winAbsMouse.Feed(p1);
+                            _winAbsMouse.Feed(_player1);
                         else
-                            _absMouse.Feed(p1);
+                            _absMouse.Feed(_player1);
 
-                        _keyboard.Feed(p1);
+                        _keyboard.Feed(_player1);
                     }
                 }
                 catch { }
@@ -296,26 +287,6 @@ namespace Guncon3Console
             try { gun2?.Dispose(); } catch { }
         }
 
-        private static void ApplyRectCalib(RectCalib rect, GunState state, short rawX, short rawY)
-        {
-            if (rect == null || !rect.IsValid())
-            {
-                state.ABS_X = rawX;
-                state.ABS_Y = rawY;
-                return;
-            }
-
-            var (px, py) = rect.Map(rawX, rawY);
-
-            double nx = (rect.ScreenW > 1) ? (px / (rect.ScreenW - 1)) : 0.0;
-            double ny = (rect.ScreenH > 1) ? (py / (rect.ScreenH - 1)) : 0.0;
-            if (nx < 0) nx = 0; if (nx > 1) nx = 1;
-            if (ny < 0) ny = 0; if (ny > 1) ny = 1;
-
-            state.ABS_X = (short)Math.Round(nx * 32767.0);
-            state.ABS_Y = (short)Math.Round(ny * 32767.0);
-        }
-
         private static void LaunchCalibrationWindowModal(string savePath, string label, GunconDevice device)
         {
             try
@@ -331,10 +302,10 @@ namespace Guncon3Console
 
         private static void Recalibrate()
         {
-            Console.WriteLine("[Calibration] Opening window (F12)...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating", _gun1ForCal);
+            Console.WriteLine("[Calibration] Single mode: calibrating...");
+            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating: Player 1 / Gun 1", _gun1ForCal);
 
-            _rect = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault));
+            _player1.Calibration.Refresh();
 
             Console.WriteLine("[Calibration] Reloaded: " + CalibDefault);
         }
@@ -347,8 +318,8 @@ namespace Guncon3Console
             Console.WriteLine("[Calibration] Dual mode: calibrating P2...");
             LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2), "Calibrating: Player 2 / Gun 2", _gun2ForCal);
 
-            _rectP1 = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1));
-            _rectP2 = RectCalib.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2));
+            _player1.Calibration.Refresh();
+            _player2.Calibration.Refresh();
 
             Console.WriteLine("[Calibration] Reloaded: " + CalibP1 + " and " + CalibP2);
         }

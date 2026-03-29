@@ -514,14 +514,15 @@ namespace Guncon3Console.TetherScript
 
         private void GunLoop()
         {
-            var state = new GunState();
+            var state = new GunState(_gun, _calib);
             int lastUi = Environment.TickCount;
             while (_gunRunning)
             {
                 try
                 {
-                    _gun.ReadInto(state.BtnState, out var rawX, out var rawY, out var ind2);
-                    state.INDICATOR2 = ind2;
+                    _gun.Read(out var btnStates, out var rawX, out var rawY, out var ind2);
+                    state.BtnState = btnStates;
+                    state.ScreenIndicator = ind2;
 
                     int dbgMappedX = 0;
                     int dbgMappedY = 0;
