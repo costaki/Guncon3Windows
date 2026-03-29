@@ -11,27 +11,26 @@ using Guncon3Console.Feeders;
 using Guncon3Console.WindowsInput;
 using Guncon3Console.Calibration;
 using Guncon3Console.Mapping;
+using static Guncon3Console.GunStates.GunState;
 
 namespace Guncon3Console
 {
     internal static class Program
     {
+        private static volatile bool _running = true;
+
         private static RectCalib _rect;
         private static RectCalib _rectP1;
         private static RectCalib _rectP2;
-        private static volatile bool _running = true;
 
         private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
-        private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
         private static readonly TetherScript.KeyboardFeeder _keyboard = new TetherScript.KeyboardFeeder();
+        private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
         private static readonly WindowsInput.KeyboardFeeder _winKeyboard = new WindowsInput.KeyboardFeeder();
 
-        private const string MappingP1Json = "mapping.p1.json";
-        private const string MappingP2Json = "mapping.p2.json";
-
-        private static GunconDevice _gun1ForCal;
-        private static GunconDevice _gun2ForCal;
+        private static GunconDevice _gun1;
+        private static GunconDevice _gun2;
 
         private static GunState _player1;
         private static GunState _player2;
@@ -73,7 +72,7 @@ namespace Guncon3Console
                 else if (which == "p2") path = CalibP2;
 
                 string label = (which == "p1") ? "Calibrating: Player 1 / Gun 1" : (which == "p2") ? "Calibrating: Player 2 / Gun 2" : "Calibrating";
-                LaunchCalibrationWindowModal(path, label, _gun1ForCal);
+                LaunchCalibrationWindowModal(path, label, _gun1);
                 return;
             }
 
@@ -113,55 +112,46 @@ namespace Guncon3Console
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            GunconDevice gun1 = null;
-            GunconDevice gun2 = null;
-
             try
             {
-                Console.WriteLine("Guncon3 connecting...");
+                Console.WriteLine("[Device Connection] Guncon3 connecting...");
+
+                var infos = USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
+                                   .Where(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId)
+                                   .Take(2)
+                                   .ToList();
+
+                if (infos == null || infos.Count == 0)
+                    throw new Exception("[Device Connection] Guncon3 device not found");
 
                 if (dual)
                 {
-                    var infos = USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
-                                       .Where(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId)
-                                       .Take(2)
-                                       .ToList();
-
                     if (infos.Count < 2)
-                        throw new Exception("Dual mode requires 2 Guncon3 devices.");
-
-                    gun1 = new GunconDevice(infos[0]);
-                    gun2 = new GunconDevice(infos[1]);
-
-                    _gun1ForCal = gun1;
-                    _gun2ForCal = gun2;
-                    Console.WriteLine("Guncon3 connected (dual). #1=" + infos[0].DevicePath);
-                    Console.WriteLine("Guncon3 connected (dual). #2=" + infos[1].DevicePath);
+                        throw new Exception("[Device Connection] Dual mode requires 2 Guncon3 devices.");
                 }
-                else
+
+                _gun1 = new GunconDevice(infos[0]);
+                Console.WriteLine("[Device Connection] Guncon3 connected. #1=" + infos[0].DevicePath);
+
+                if (dual)
                 {
-                    var info = USBDevice.GetDevices(Constants.GunDeviceInterfaceGuid)
-                                      .FirstOrDefault(x => x.VID == Constants.VendorId && x.PID == Constants.ProductId);
-                    if (info == null)
-                        throw new Exception("Guncon3 device not found");
+                    if (infos.Count < 2)
+                        throw new Exception("[Device Connection] Dual mode requires 2 Guncon3 devices.");
 
-                    gun1 = new GunconDevice(info);
-
-                    _gun1ForCal = gun1;
-
-                    Console.WriteLine("Guncon3 connected (single). #1=" + info.DevicePath);
+                    _gun2 = new GunconDevice(infos[1]);
+                    Console.WriteLine("[Device Connection] Guncon3 connected. #2=" + infos[1].DevicePath);
                 }
             }
             catch (Exception ex)
             {
-                FailAndExit("Could not connect to the Guncon3.", ex);
+                FailAndExit("[Device Connection] Could not connect to the Guncon3.", ex);
                 return;
             }
 
             if (testMode)
             {
                 Console.WriteLine("[Test] Opening test window...");
-                using (var w = new TestWindow(gun1, dual ? gun2 : null))
+                using (var w = new TestWindow(_gun1, dual ? _gun2 : null))
                     Application.Run(w);
                 return;
             }
@@ -204,38 +194,21 @@ namespace Guncon3Console
 
             TryConnectFeeders(useRelMouse, dual, useWindowsInputAbs);
 
-            _player1 = new GunState(gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard, mappingPath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MappingP1Json));
-            _player2 = dual ? new GunState(gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard, mappingPath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MappingP2Json)) : null;
+            _player1 = new GunState(Player.Player1, _gun1, dual ? _rectP1 : _rect, mouseFeeder: _absMouse, keyboardFeeder: _keyboard);
+            _player2 = dual ? new GunState(Player.Player2, _gun2, _rectP2, mouseFeeder: useRelMouse ? (IMouseFeeder)_relMouse : _winAbsMouse, keyboardFeeder: _winKeyboard) : null;
 
             LoadMappingsJson(dual, logOnly: true);
 
             Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
 
-
-            // Test window is launched modally via Application.Run when requested.
-
             while (_running)
             {
-                if (dual)
-                {
-                    _player1.Update();
-                    _player2.Update();
-                }
-                else
-                {
-                    _player1.Update();
-                }
-
                 try
                 {
+                    _player1.UpdateAndFeed();
                     if (dual)
                     {
-                        _player1.Feed();
-                        _player2.Feed();
-                    }
-                    else
-                    {
-                        _player1.Feed();
+                        _player2.UpdateAndFeed();
                     }
                 }
                 catch { }
@@ -249,7 +222,7 @@ namespace Guncon3Console
                     {
                         try
                         {
-                            using (var w = new TestWindow(gun1, dual ? gun2 : null))
+                            using (var w = new TestWindow(_gun1, dual ? _gun2 : null))
                                 Application.Run(w);
                         }
                         catch { }
@@ -269,13 +242,13 @@ namespace Guncon3Console
 
                 Thread.Sleep(1);
             }
-            try { if (useRelMouse) _relMouse.Disconnect(); } catch { }
-            try { if (dual || useWindowsInputAbs) _winAbsMouse.Disconnect(); } catch { }
             try { _absMouse.Disconnect(); } catch { }
+            try { _relMouse.Disconnect(); } catch { }
             try { _keyboard.Disconnect(); } catch { }
+            try { _winAbsMouse.Disconnect(); } catch { }
             try { _winKeyboard.Disconnect(); } catch { }
-            try { gun1?.Dispose(); } catch { }
-            try { gun2?.Dispose(); } catch { }
+            try { _gun1?.Dispose(); } catch { }
+            try { _gun2?.Dispose(); } catch { }
         }
 
         private static void LaunchCalibrationWindowModal(string savePath, string label, GunconDevice device)
@@ -294,7 +267,7 @@ namespace Guncon3Console
         private static void Recalibrate()
         {
             Console.WriteLine("[Calibration] Single mode: calibrating...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating: Player 1 / Gun 1", _gun1ForCal);
+            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibDefault), "Calibrating: Player 1 / Gun 1", _gun1);
 
             _player1.Calibration.Refresh();
 
@@ -304,10 +277,10 @@ namespace Guncon3Console
         private static void RecalibrateDual()
         {
             Console.WriteLine("[Calibration] Dual mode: calibrating P1...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1), "Calibrating: Player 1 / Gun 1", _gun1ForCal);
+            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP1), "Calibrating: Player 1 / Gun 1", _gun1);
 
             Console.WriteLine("[Calibration] Dual mode: calibrating P2...");
-            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2), "Calibrating: Player 2 / Gun 2", _gun2ForCal);
+            LaunchCalibrationWindowModal(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, CalibP2), "Calibrating: Player 2 / Gun 2", _gun2);
 
             _player1.Calibration.Refresh();
             _player2.Calibration.Refresh();
@@ -319,61 +292,24 @@ namespace Guncon3Console
         {
             try
             {
-                if (dual)
-                {
-                    Console.WriteLine("TetherScript Absolute Mouse for Player 1 connecting...");
-                    _absMouse.Connect();
-                    Console.WriteLine("TetherScript Absolute Mouse for Player 1 connected.");
+                Console.WriteLine("TetherScript Absolute connecting...");
+                _absMouse.Connect();
+                Console.WriteLine("TetherScript Absolute connected.");
 
-                    if (useRelMouse)
-                    {
-                        Console.WriteLine("TetherScript Relative Mouse for Player 2 connecting...");
-                        _relMouse.Connect();
-                        Console.WriteLine("TetherScript Relative Mouse for Player 2 connected.");
-                    }
-                    else
-                    {
-                        Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connecting...");
-                        _winAbsMouse.Connect();
-                        Console.WriteLine("WindowsInput Absolute Mouse for Player 2 connected.");
-                    }
-                }
-                else
-                {
-                    if (useRelMouse)
-                    {
-                        Console.WriteLine("TetherScript Relative Mouse connecting...");
-                        _relMouse.Connect();
-                        Console.WriteLine("TetherScript Relative Mouse connected.");
-                    }
-                    else if (useWindowsInputAbs)
-                    {
-                        Console.WriteLine("WindowsInput Absolute Mouse connecting...");
-                        _winAbsMouse.Connect();
-                        Console.WriteLine("WindowsInput Absolute Mouse connected.");
-                    }
-                    else
-                    {
-                        Console.WriteLine("TetherScript Absolute Mouse for connecting...");
-                        _absMouse.Connect();
-                        Console.WriteLine("TetherScript Absolute Mouse for connected.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("[MouseFeeder] Connect fail:\n" + ex);
-            }
+                Console.WriteLine("TetherScript Relative connecting...");
+                _relMouse.Connect();
+                Console.WriteLine("TetherScript Relative connected.");
 
-            try
-            {
                 Console.WriteLine("TetherScript Keyboard connecting...");
                 _keyboard.Connect();
                 Console.WriteLine("TetherScript Keyboard connected.");
+
+                _winAbsMouse.Connect();
+                _winKeyboard.Connect();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[KeyboardFeeder] Connect fail:\n" + ex);
+                Console.WriteLine("[FeederConnect] Connect fail:\n" + ex);
             }
         }
 

@@ -7,6 +7,9 @@ namespace Guncon3Console.Mapping
 {
     internal static class GunMappingStore
     {
+        public const string Player1FileName = "mapping.p1.json";
+        public const string Player2FileName = "mapping.p2.json";
+
         public static GunMappingModel Load(string path)
         {
             if (string.IsNullOrWhiteSpace(path))

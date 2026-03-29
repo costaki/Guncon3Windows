@@ -1,13 +1,14 @@
+using Guncon3Console.Calibration;
+using Guncon3Console.GunStates;
+using GunconUSB;
 using System;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
-using GunconUSB;
-using Guncon3Console.GunStates;
-using Guncon3Console.Calibration;
+using static Guncon3Console.GunStates.GunState;
 
 namespace Guncon3Console.TetherScript
 {
@@ -514,7 +515,7 @@ namespace Guncon3Console.TetherScript
 
         private void GunLoop()
         {
-            var state = new GunState(_gun, _calib);
+            var state = new GunState(Player.Player1, _gun, _calib);
             int lastUi = Environment.TickCount;
             while (_gunRunning)
             {

@@ -1,22 +1,31 @@
-using System;
-using System.Collections.Generic;
-using GunconUSB;
 using Guncon3Console.Calibration;
 using Guncon3Console.Feeders;
 using Guncon3Console.Mapping;
+using GunconUSB;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace Guncon3Console.GunStates
 {
     internal sealed class GunState : IGunState
     {
+        public enum Player
+        {
+            Player1,
+            Player2
+        }
+
+        public Player PlayerNum { get; }
+
         public GunconDevice Device { get; }
 
-        public IMouseFeeder MouseFeeder { get; set; }
+        public IMouseFeeder MouseFeeder { get; }
 
-        public IKeyboardFeeder KeyboardFeeder { get; set; }
+        public IKeyboardFeeder KeyboardFeeder { get; }
 
-        private string mappingPath { get; set; }
-        private GunMappingModel mappingModel { get; set; }
+        private string MappingPath { get; set; }
+        private GunMappingModel MappingModel { get; set; }
 
         public RectCalib Calibration { get; set; }
 
@@ -29,13 +38,13 @@ namespace Guncon3Console.GunStates
 
         public bool IsInsideScreen => !ScreenIndicator;
 
-        public GunState(GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, string mappingPath = null)
+        public GunState(Player player, GunconDevice device, RectCalib calibration, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null)
         {
+            PlayerNum = player;
             Device = device ?? throw new ArgumentNullException(nameof(device));
             Calibration = calibration;
             MouseFeeder = mouseFeeder;
             KeyboardFeeder = keyboardFeeder;
-            this.mappingPath = mappingPath;
 
             var values = Enum.GetValues(typeof(GunButton));
             BtnState = new Dictionary<GunButton, bool>(values.Length);
@@ -47,15 +56,25 @@ namespace Guncon3Console.GunStates
 
         public void LoadMapping()
         {
-            if (!string.IsNullOrEmpty(mappingPath))
-                LoadMapping(mappingPath);
+            if (!string.IsNullOrEmpty(MappingPath))
+                LoadMapping(MappingPath);
+            else
+            {
+                string fileName;
+                if (PlayerNum == Player.Player1)
+                    fileName = GunMappingStore.Player1FileName;
+                else
+                    fileName = GunMappingStore.Player2FileName;
+                MappingPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+                LoadMapping(MappingPath);
+            }
         }
 
         public void LoadMapping(string path)
         {
-            this.mappingPath = path;
+            MappingPath = path;
             var model = GunMappingStore.Load(path);
-            mappingModel = model;
+            MappingModel = model;
             GunMappingStore.ApplyToFeeders(model, MouseFeeder, KeyboardFeeder);
         }
 
@@ -85,6 +104,12 @@ namespace Guncon3Console.GunStates
         {
             MouseFeeder?.Feed(this);
             KeyboardFeeder?.Feed(this);
+        }
+
+        public void UpdateAndFeed()
+        {
+            Update();
+            Feed();
         }
     }
 }
