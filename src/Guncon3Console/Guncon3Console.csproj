@@ -125,7 +125,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="TetherScript\TetherScriptMarshal.cs" />
-    <Compile Include="WindowsInputFeeders\WindowsInputAbsMouseFeeder.cs" />
+    <Compile Include="WindowsInput\AbsMouseFeeder.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="mapping.txt">

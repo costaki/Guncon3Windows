@@ -8,7 +8,7 @@ using GunconUSB;                         // gun reader (GunconUSB project)
 using Guncon3Console.GunStates;        // IGunState and GunPlayerState
 using Guncon3Console.TetherScript;      // TetherScript feeders (mouse/keyboard)
 using Guncon3Console.Feeders;
-using Guncon3Console.WindowsInputFeeders;
+using Guncon3Console.WindowsInput;
 using Guncon3Console.Calibration;          // RectCalib and CalibrationWindow
 
 namespace Guncon3Console
@@ -20,9 +20,9 @@ namespace Guncon3Console
         private static RectCalib _rectP2;
         private static volatile bool _running = true;
 
-        private static readonly AbsMouseFeeder _absMouse = new AbsMouseFeeder();
+        private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
-        private static readonly WindowsInputAbsMouseFeeder _winAbsMouse = new WindowsInputAbsMouseFeeder();
+        private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
         private static readonly KeyboardFeeder _keyboard = new KeyboardFeeder();
         private static readonly GamepadFeeder _gamepad = new GamepadFeeder();
 
@@ -507,11 +507,11 @@ namespace Guncon3Console
             else if ((isMouse2 && dual && !useRelMouse) || (isMouse1 && !dual && useWindowsInputAbs))
             {
                 if (isLeft)
-                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.LeftButton);
+                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.LeftButton);
                 else if (isRight)
-                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.RightButton);
+                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.RightButton);
                 else if (isMiddle)
-                    _winAbsMouse.AddMapping(gunButton, WindowsInput.MouseButton.MiddleButton);
+                    _winAbsMouse.AddMapping(gunButton, global::WindowsInput.MouseButton.MiddleButton);
             }
         }
 

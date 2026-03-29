@@ -5,19 +5,19 @@ using WindowsInput;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
 
-namespace Guncon3Console.WindowsInputFeeders
+namespace Guncon3Console.WindowsInput
 {
-    internal sealed class WindowsInputAbsMouseFeeder : IMouseFeeder
+    internal sealed class AbsMouseFeeder : IMouseFeeder
     {
         private readonly InputSimulator _input = new InputSimulator();
 
         // Map: logical gun button (public enum in GunconUSB) -> WindowsInput mouse button
-        private readonly Dictionary<GunButton, WindowsInput.MouseButton> _mapping = new Dictionary<GunButton, WindowsInput.MouseButton>();
+        private readonly Dictionary<GunButton, global::WindowsInput.MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
         public bool Force4by3 { get; set; } = false;
 
         private byte _prevButtons;
-        public WindowsInputAbsMouseFeeder() { }
+        public AbsMouseFeeder() { }
 
         public string Name => "WindowsInput AbsMouse";
 
@@ -31,7 +31,7 @@ namespace Guncon3Console.WindowsInputFeeders
 
         public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            if (mapping is WindowsInput.MouseButton btn)
+            if (mapping is global::WindowsInput.MouseButton btn)
                 _mapping[gunButton] = btn;
         }
 
@@ -96,8 +96,8 @@ namespace Guncon3Console.WindowsInputFeeders
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
-                if (map.Value == WindowsInput.MouseButton.LeftButton) btns = (byte)(btns | 1);
-                if (map.Value == WindowsInput.MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
+                if (map.Value == global::WindowsInput.MouseButton.LeftButton) btns = (byte)(btns | 1);
+                if (map.Value == global::WindowsInput.MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
                 // WindowsInput fork in this repo doesn't expose middle button down/up on IMouseSimulator.
                 // Keep mask bit reserved for compatibility, but no-op in SyncButtons.
             }
