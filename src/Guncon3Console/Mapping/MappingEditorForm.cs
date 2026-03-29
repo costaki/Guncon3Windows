@@ -21,6 +21,8 @@ namespace Guncon3Console.Mapping
         private readonly DataGridView _gridP1;
         private readonly DataGridView _gridP2;
 
+        private readonly TabControl _tabs;
+
         private GunMappingModel _modelP1;
         private GunMappingModel _modelP2;
 
@@ -51,73 +53,106 @@ namespace Guncon3Console.Mapping
             Controls.Add(root);
 
             var tabs = new TabControl { Dock = DockStyle.Fill };
-            root.Controls.Add(tabs, 0, 0);
+            _tabs = tabs;
+            root.Controls.Add(_tabs, 0, 0);
 
             _gridP1 = CreateGrid();
-            tabs.TabPages.Add(new TabPage("Player 1") { Controls = { _gridP1 } });
+            var p1Page = new TabPage("Player 1");
+            p1Page.Controls.Add(CreatePlayerPanel(player: 1, _gridP1));
+            _tabs.TabPages.Add(p1Page);
 
             if (_enableP2)
             {
                 _gridP2 = CreateGrid();
-                tabs.TabPages.Add(new TabPage("Player 2") { Controls = { _gridP2 } });
+                var p2Page = new TabPage("Player 2");
+                p2Page.Controls.Add(CreatePlayerPanel(player: 2, _gridP2));
+                _tabs.TabPages.Add(p2Page);
             }
+
+            Load += (s, e) => LoadAll();
+            FormClosing += (s, e) =>
+            {
+                if (!e.Cancel)
+                    e.Cancel = !PromptSaveIfDirty();
+            };
+        }
+
+        private Control CreatePlayerPanel(int player, DataGridView grid)
+        {
+            var panel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2
+            };
+            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            panel.Controls.Add(grid, 0, 0);
 
             var buttons = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
+                FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = true,
-                WrapContents = false
+                WrapContents = true
             };
-            root.Controls.Add(buttons, 0, 1);
+            panel.Controls.Add(buttons, 0, 1);
 
-            var btnSave = new Button { Text = "Save", AutoSize = true };
-            btnSave.Click += (s, e) => SaveAll(promptCloseAfterSave: true);
-            buttons.Controls.Add(btnSave);
+            // Player-specific buttons first
+            var btnCalibrate = new Button { Text = player == 1 ? "Calibrate P1" : "Calibrate P2", AutoSize = true };
+            btnCalibrate.Click += (s, e) => CalibratePlayer(player);
+            buttons.Controls.Add(btnCalibrate);
 
+            var btnManual = new Button { Text = "Manual Edit Calibration", AutoSize = true };
+            btnManual.Click += (s, e) => ManualEditCalibration(player);
+            buttons.Controls.Add(btnManual);
+
+            if (_enableP2)
+            {
+                if (player == 1)
+                {
+                    var btnCopyTo = new Button { Text = "Copy P1 → P2", AutoSize = true };
+                    btnCopyTo.Click += (s, e) =>
+                    {
+                        if (!Confirm("Overwrite Player 2 mappings with Player 1 mappings?"))
+                            return;
+                        CopyGrid(_gridP1, _gridP2);
+                    };
+                    buttons.Controls.Add(btnCopyTo);
+                }
+                else
+                {
+                    var btnCopyTo = new Button { Text = "Copy P2 → P1", AutoSize = true };
+                    btnCopyTo.Click += (s, e) =>
+                    {
+                        if (!Confirm("Overwrite Player 1 mappings with Player 2 mappings?"))
+                            return;
+                        CopyGrid(_gridP2, _gridP1);
+                    };
+                    buttons.Controls.Add(btnCopyTo);
+                }
+
+                if (player == 2)
+                {
+                    var btnCalibBoth = new Button { Text = "Calibrate Both", AutoSize = true };
+                    btnCalibBoth.Click += (s, e) => CalibrateBoth();
+                    buttons.Controls.Add(btnCalibBoth);
+                }
+            }
+
+            // Common actions last
             var btnClearAll = new Button { Text = "Clear All", AutoSize = true };
             btnClearAll.Click += (s, e) =>
             {
-                if (Confirm("Clear all mappings for the visible player(s)?"))
-                    ClearAll();
+                var label = player == 1 ? "Player 1" : "Player 2";
+                if (Confirm($"Clear all mappings for {label}?"))
+                {
+                    ClearGrid(grid);
+                    _dirty = true;
+                }
             };
             buttons.Controls.Add(btnClearAll);
-
-            if (_enableP2)
-            {
-                var btnCopyP1ToP2 = new Button { Text = "Copy P1 → P2", AutoSize = true };
-                btnCopyP1ToP2.Click += (s, e) =>
-                {
-                    if (!Confirm("Overwrite Player 2 mappings with Player 1 mappings?"))
-                        return;
-                    CopyGrid(_gridP1, _gridP2);
-                };
-                buttons.Controls.Add(btnCopyP1ToP2);
-
-                var btnCopyP2ToP1 = new Button { Text = "Copy P2 → P1", AutoSize = true };
-                btnCopyP2ToP1.Click += (s, e) =>
-                {
-                    if (!Confirm("Overwrite Player 1 mappings with Player 2 mappings?"))
-                        return;
-                    CopyGrid(_gridP2, _gridP1);
-                };
-                buttons.Controls.Add(btnCopyP2ToP1);
-            }
-
-            var btnCalibP1 = new Button { Text = "Calibrate P1", AutoSize = true };
-            btnCalibP1.Click += (s, e) => CalibratePlayer(1);
-            buttons.Controls.Add(btnCalibP1);
-
-            if (_enableP2)
-            {
-                var btnCalibP2 = new Button { Text = "Calibrate P2", AutoSize = true };
-                btnCalibP2.Click += (s, e) => CalibratePlayer(2);
-                buttons.Controls.Add(btnCalibP2);
-
-                var btnCalibBoth = new Button { Text = "Calibrate Both", AutoSize = true };
-                btnCalibBoth.Click += (s, e) => CalibrateBoth();
-                buttons.Controls.Add(btnCalibBoth);
-            }
 
             var btnReload = new Button { Text = "Reload", AutoSize = true };
             btnReload.Click += (s, e) =>
@@ -127,16 +162,15 @@ namespace Guncon3Console.Mapping
             };
             buttons.Controls.Add(btnReload);
 
+            var btnSave = new Button { Text = "Save", AutoSize = true };
+            btnSave.Click += (s, e) => SaveAll(promptCloseAfterSave: true);
+            buttons.Controls.Add(btnSave);
+
             var btnClose = new Button { Text = "Close", AutoSize = true };
             btnClose.Click += (s, e) => Close();
             buttons.Controls.Add(btnClose);
 
-            Load += (s, e) => LoadAll();
-            FormClosing += (s, e) =>
-            {
-                if (!e.Cancel)
-                    e.Cancel = !PromptSaveIfDirty();
-            };
+            return panel;
         }
 
         private void CalibratePlayer(int player)
@@ -430,24 +464,37 @@ namespace Guncon3Console.Mapping
 
         private DataGridView GetActiveGrid()
         {
-            foreach (Control c in Controls)
-            {
-                if (c is TableLayoutPanel root)
-                {
-                    foreach (Control cc in root.Controls)
-                    {
-                        if (cc is TabControl tabs)
-                        {
-                            var page = tabs.SelectedTab;
-                            if (page == null)
-                                return null;
-                            return page.Controls.OfType<DataGridView>().FirstOrDefault();
-                        }
-                    }
-                }
-            }
+            var page = _tabs?.SelectedTab;
+            if (page == null)
+                return null;
+            return page.Controls.OfType<TableLayoutPanel>().SelectMany(p => p.Controls.OfType<DataGridView>()).FirstOrDefault();
+        }
 
-            return null;
+        private void ManualEditCalibration(int player)
+        {
+            var r = MessageBox.Show(this,
+                "Warning: calibration should not generally be edited manually. Use normal calibration whenever possible.\n\nContinue?",
+                Text,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (r != DialogResult.Yes)
+                return;
+
+            var path = (player == 1)
+                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _enableP2 ? RectCalib.Player1FileName : RectCalib.DefaultFileName)
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, RectCalib.Player2FileName);
+
+            using (var w = new RectCalibEditorForm(path))
+                w.ShowDialog(this);
+
+            // Ensure running state picks up manual edits.
+            try
+            {
+                if (player == 1 && Guncon3Console.Program.ProgramCalibration.TryRefresh(1)) { }
+                else if (player == 2 && Guncon3Console.Program.ProgramCalibration.TryRefresh(2)) { }
+            }
+            catch { }
         }
 
         private static void ClearGrid(DataGridView grid)

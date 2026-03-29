@@ -31,6 +31,28 @@ namespace Guncon3Console
 
         private static string AppPath;
 
+        internal static class ProgramCalibration
+        {
+            public static bool TryRefresh(int player)
+            {
+                try
+                {
+                    if (player == 1)
+                    {
+                        _player1?.RefreshCalibration();
+                        return true;
+                    }
+                    if (player == 2)
+                    {
+                        _player2?.RefreshCalibration();
+                        return true;
+                    }
+                }
+                catch { }
+                return false;
+            }
+        }
+
         [STAThread]
         private static void Main(string[] args)
         {
