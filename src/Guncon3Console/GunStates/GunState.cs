@@ -24,7 +24,7 @@ namespace Guncon3Console.GunStates
 
         public IKeyboardFeeder KeyboardFeeder { get; }
 
-        private string MappingPath { get; set; }
+        public string MappingPath { get; private set; }
         private GunMappingModel MappingModel { get; set; }
 
         public RectCalib Calibration { get; set; }

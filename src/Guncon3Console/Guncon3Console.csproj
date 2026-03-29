@@ -122,6 +122,9 @@
     </Compile>
     <Compile Include="Mapping\GunMappingModel.cs" />
     <Compile Include="Mapping\GunMappingStore.cs" />
+    <Compile Include="Mapping\MappingEditorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="TetherScript\GamepadFeeder.cs" />
     <Compile Include="TetherScript\HIDController.cs" />
     <Compile Include="Program.cs" />

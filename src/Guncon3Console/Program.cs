@@ -192,7 +192,7 @@ namespace Guncon3Console
                 }
             }
 
-            Console.WriteLine("Ready to use!   (F12 = recalibrate,  T = test screen,  R = reload mapping.txt,  ESC = exit)");
+            Console.WriteLine("Ready to use!   (F12 = recalibrate all,  1/2 = recalibrate P1/P2,  T = test screen,  M = mappings UI,  R = reload mapping.json,  ESC = exit)");
 
             while (_running)
             {
@@ -226,10 +226,33 @@ namespace Guncon3Console
                         if (dual)
                             RecalibrateGun(_player2, dual);
                     }
+                    else if (k.Key == ConsoleKey.D1)
+                    {
+                        RecalibrateGun(_player1, dual);
+                    }
+                    else if (k.Key == ConsoleKey.D2)
+                    {
+                        if (dual && _player2 != null)
+                            RecalibrateGun(_player2, dual);
+                    }
                     else if (k.Key == ConsoleKey.R)
                     {
                         LoadMappingsJson(dual, logOnly: false);
                     }
+                    else if (k.Key == ConsoleKey.M)
+                    {
+                        try
+                        {
+                            var p1 = _player1.MappingPath;
+                            var p2 = _player2.MappingPath;
+                            using (var w = new Guncon3Console.Mapping.MappingEditorForm(p1, p2, enablePlayer2: dual, player1Device: _gun1, player2Device: _gun2))
+                                w.ShowDialog();
+                            LoadMappingsJson(dual, logOnly: false);
+                        }
+                        catch { }
+                    }
+
+                    Console.WriteLine("Ready to use!   (F12 = recalibrate all,  1/2 = recalibrate P1/P2,  T = test screen,  M = mappings UI,  R = reload mapping.json,  ESC = exit)");
                 }
 
                 Thread.Sleep(1);

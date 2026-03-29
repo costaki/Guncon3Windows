@@ -141,7 +141,7 @@ namespace Guncon3Console.Calibration
                     this.RawMinX = rc.RawMinX;
                     this.RawMaxX = rc.RawMaxX;
                     this.RawMinY = rc.RawMinY;
-                    this.RawMaxX = rc.RawMaxY;
+                    this.RawMaxY = rc.RawMaxY;
                     this.ScreenW = rc.ScreenW;
                     this.ScreenH = rc.ScreenH;
                     this.InvertY = rc.InvertY;
