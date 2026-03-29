@@ -7,7 +7,7 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.WindowsInputFeeders
 {
-    internal sealed class WindowsInputAbsMouseFeeder : IFeeder
+    internal sealed class WindowsInputAbsMouseFeeder : IMouseFeeder
     {
         private readonly InputSimulator _input = new InputSimulator();
 
@@ -22,6 +22,8 @@ namespace Guncon3Console.WindowsInputFeeders
         public string Name => "WindowsInput AbsMouse";
 
         public bool IsConnected => true;
+
+        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
 
         public void ClearMapping() => _mapping.Clear();
 

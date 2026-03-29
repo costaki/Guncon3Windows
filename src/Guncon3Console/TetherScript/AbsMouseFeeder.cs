@@ -10,9 +10,10 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class AbsMouseFeeder : IFeeder
+    internal sealed class AbsMouseFeeder : IMouseFeeder, ITetherScriptFeeder
     {
         private readonly HIDController _hid = new HIDController();
+        public HIDController Hid => _hid;
 
         // Map: logical gun button (public enum in GunconUSB) -> TetherScript virtual mouse button
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
@@ -24,7 +25,12 @@ namespace Guncon3Console.TetherScript
 
         public string Name => "TetherScript AbsMouse";
 
+        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
+        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;
+
         public bool IsConnected => _hid.Connected;
+
+        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
 
         public void ClearMapping() => _mapping.Clear();
 
@@ -45,9 +51,9 @@ namespace Guncon3Console.TetherScript
 
         public void Connect()
         {
-            _hid.OnLog += Log;
-            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;            // VendorId TetherScript
-            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;  // ProductId Mouse Abs
+            _hid.OnLog += OnHidLog;
+            _hid.VendorID = VendorId;            // VendorId TetherScript
+            _hid.ProductID = ProductId;  // ProductId Mouse Abs
             _hid.Connect();
 
             if (!_hid.Connected)
@@ -57,10 +63,10 @@ namespace Guncon3Console.TetherScript
         public void Disconnect()
         {
             _hid.Disconnect();
-            _hid.OnLog -= Log;
+            _hid.OnLog -= OnHidLog;
         }
 
-        private static void Log(object s, LogArgs e) => Console.WriteLine("Mouse " + e.Msg);
+        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
         public void Send_Data_To_MouseAbs(ushort x, ushort y)
         {

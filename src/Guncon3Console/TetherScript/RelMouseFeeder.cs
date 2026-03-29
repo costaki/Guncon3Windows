@@ -8,13 +8,16 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelMouseFeeder : IFeeder
+    internal sealed class RelMouseFeeder : IMouseFeeder, ITetherScriptFeeder
     {
         private readonly HIDController _hid = new HIDController();
+        public HIDController Hid => _hid;
 
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
         private byte _btns;
+
+        public bool Force4by3 { get; set; } = false;
 
         // Tunables (servo)
         // Cursor error (in pixels) is multiplied by Kp to produce a relative delta.
@@ -45,7 +48,12 @@ namespace Guncon3Console.TetherScript
 
         public string Name => "TetherScript RelMouse";
 
+        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
+        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
+
         public bool IsConnected => _hid.Connected;
+
+        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
 
         public void ClearMapping() => _mapping.Clear();
 
@@ -66,9 +74,9 @@ namespace Guncon3Console.TetherScript
 
         public void Connect()
         {
-            _hid.OnLog += Log;
-            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
+            _hid.OnLog += OnHidLog;
+            _hid.VendorID = VendorId;
+            _hid.ProductID = ProductId;
             _hid.Connect();
 
             if (!_hid.Connected)
@@ -80,10 +88,10 @@ namespace Guncon3Console.TetherScript
         public void Disconnect()
         {
             _hid.Disconnect();
-            _hid.OnLog -= Log;
+            _hid.OnLog -= OnHidLog;
         }
 
-        private static void Log(object s, LogArgs e) => Console.WriteLine("MouseRel " + e.Msg);
+        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
         public void Feed(IGunState state)
         {
@@ -111,7 +119,11 @@ namespace Guncon3Console.TetherScript
                 return;
             }
 
-            var target = AbsToScreenTarget(state.ABS_X, state.ABS_Y);
+            var absX = state.ABS_X;
+            if (Force4by3)
+                absX = (short)Helper.ConvertRange(4096, 28671, 0, 32767, absX);
+
+            var target = AbsToScreenTarget(absX, state.ABS_Y);
             var targetSm = SmoothTarget(target);
             targetSm = Median3(targetSm);
             var cur = GetCursorPosSafe();

@@ -7,9 +7,10 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class KeyboardFeeder : IFeeder
+    internal sealed class KeyboardFeeder : ITetherScriptFeeder
     {
         private readonly HIDController _hid = new HIDController();
+        public HIDController Hid => _hid;
 
         private readonly uint _fTimeout = 5000;
 
@@ -25,7 +26,12 @@ namespace Guncon3Console.TetherScript
 
         public string Name => "TetherScript Keyboard";
 
+        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
+        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
+
         public bool IsConnected => _hid.Connected;
+
+        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
 
         public void ClearMapping() => _mapping.Clear();
 
@@ -52,9 +58,9 @@ namespace Guncon3Console.TetherScript
 
         public void Connect()
         {
-            _hid.OnLog += Log;
-            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
+            _hid.OnLog += OnHidLog;
+            _hid.VendorID = VendorId;
+            _hid.ProductID = ProductId;
             _hid.Connect();
             if (!_hid.Connected)
                 throw new Exception("Could not connect to TetherScript Keyboard.");
@@ -73,12 +79,12 @@ namespace Guncon3Console.TetherScript
             }
             catch { }
             _hid.Disconnect();
-            _hid.OnLog -= Log;
+            _hid.OnLog -= OnHidLog;
         }
 
-        private static void Log(object s, LogArgs e) => Console.WriteLine("Keyboard " + e.Msg);
+        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
-        public void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
+        private void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
             {

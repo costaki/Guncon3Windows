@@ -7,6 +7,7 @@ namespace Guncon3Console.Feeders
     internal interface IFeeder
     {
         string Name { get; }
+        void Log(string message);
         void ClearMapping();
         int MappingCount();
         void AddMapping(GunButton gunButton, dynamic mapping);

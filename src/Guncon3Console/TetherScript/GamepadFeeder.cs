@@ -7,9 +7,10 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class GamepadFeeder : IFeeder
+    internal sealed class GamepadFeeder : ITetherScriptFeeder
     {
         private readonly HIDController _hid = new HIDController();
+        public HIDController Hid => _hid;
 
         // Map: logical gun button -> bit index in the gamepad Buttons field (0..15)
         private readonly Dictionary<GunButton, int> _mapping = new Dictionary<GunButton, int>();
@@ -19,7 +20,12 @@ namespace Guncon3Console.TetherScript
 
         public string Name => "TetherScript Gamepad";
 
+        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
+        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_GAMEPAD;
+
         public bool IsConnected => _hid.Connected;
+
+        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
 
         public void ClearMapping() => _mapping.Clear();
 
@@ -46,9 +52,9 @@ namespace Guncon3Console.TetherScript
 
         public void Connect()
         {
-            _hid.OnLog += Log;
-            _hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
-            _hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_GAMEPAD;
+            _hid.OnLog += OnHidLog;
+            _hid.VendorID = VendorId;
+            _hid.ProductID = ProductId;
             _hid.Connect();
 
             if (!_hid.Connected)
@@ -60,10 +66,10 @@ namespace Guncon3Console.TetherScript
         public void Disconnect()
         {
             _hid.Disconnect();
-            _hid.OnLog -= Log;
+            _hid.OnLog -= OnHidLog;
         }
 
-        private static void Log(object s, LogArgs e) => Console.WriteLine("Gamepad " + e.Msg);
+        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
         public void Feed(IGunState state)
         {
