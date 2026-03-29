@@ -7,7 +7,7 @@ using Guncon3Console.Feeders;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class KeyboardFeeder : ITetherScriptFeeder
+    internal sealed class KeyboardFeeder : ITetherScriptFeeder, IKeyboardFeeder
     {
         private readonly HIDController _hid = new HIDController();
         public HIDController Hid => _hid;

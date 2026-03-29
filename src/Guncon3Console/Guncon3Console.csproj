@@ -111,6 +111,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Feeders\IFeeder.cs" />
+    <Compile Include="Feeders\IKeyboardFeeder.cs" />
     <Compile Include="Feeders\IMouseFeeder.cs" />
     <Compile Include="Feeders\ITetherScriptFeeder.cs" />
     <Compile Include="GunStates\GunState.cs" />
