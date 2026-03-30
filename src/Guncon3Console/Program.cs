@@ -207,7 +207,7 @@ namespace Guncon3Console
             }
             else
             {
-                p1MouseFeeder = _relMouse;
+                p1MouseFeeder = _absMouse;
                 p1KeyboardFeeder = _keyboard;
                 Console.WriteLine("[Mode] DUAL mode with Player 1 / Gun 1 - TetherScript Relative Mouse & Keyboard output.");
                 if (useRelMouse)
