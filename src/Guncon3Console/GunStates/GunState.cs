@@ -24,11 +24,10 @@ namespace Guncon3Console.GunStates
 
         public IKeyboardFeeder KeyboardFeeder { get; }
 
-        public string MappingPath { get; private set; }
-        private GunMappingModel MappingModel { get; set; }
+        public GunMappingModel Mapping { get; set; }
+        public bool MappingIsValid => Mapping != null && Mapping.IsValid();
 
         public RectCalib Calibration { get; set; }
-        public bool HasCalibration => Calibration != null;
         public bool CalibrationIsValid => Calibration != null && Calibration.IsValid();
 
         public Dictionary<GunButton, bool> BtnState { get; set; }
@@ -43,7 +42,7 @@ namespace Guncon3Console.GunStates
         public int ScreenW => Calibration?.ScreenW ?? 0;
         public int ScreenH => Calibration?.ScreenH ?? 0;
 
-        public GunState(Player player, GunconDevice device, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, RectCalib calibration = null )
+        public GunState(Player player, GunconDevice device, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, RectCalib calibration = null, GunMappingModel mapping = null )
         {
             PlayerNum = player;
             Device = device ?? throw new ArgumentNullException(nameof(device));
@@ -56,7 +55,11 @@ namespace Guncon3Console.GunStates
             foreach (GunButton b in values)
                 BtnState[b] = false;
 
-            LoadMapping();
+            if (mapping != null)
+            {
+                Mapping = mapping;
+                GunMappingStore.ApplyToFeeders(mapping, MouseFeeder, KeyboardFeeder);
+            }
         }
 
         public void LoadNewCalibration(string path)
@@ -70,28 +73,19 @@ namespace Guncon3Console.GunStates
                 Calibration.Refresh();
         }
 
-        public void LoadMapping()
+        public void LoadNewMapping(string path)
         {
-            if (!string.IsNullOrEmpty(MappingPath))
-                LoadMapping(MappingPath);
-            else
-            {
-                string fileName;
-                if (PlayerNum == Player.Player1)
-                    fileName = GunMappingStore.Player1FileName;
-                else
-                    fileName = GunMappingStore.Player2FileName;
-                MappingPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-                LoadMapping(MappingPath);
-            }
+            Mapping = GunMappingModel.Load(path);
+            GunMappingStore.ApplyToFeeders(Mapping, MouseFeeder, KeyboardFeeder);
         }
 
-        public void LoadMapping(string path)
+        public void RefreshMapping()
         {
-            MappingPath = path;
-            var model = GunMappingStore.Load(path);
-            MappingModel = model;
-            GunMappingStore.ApplyToFeeders(model, MouseFeeder, KeyboardFeeder);
+            if (Mapping != null)
+            {
+                Mapping.Refresh();
+                GunMappingStore.ApplyToFeeders(Mapping, MouseFeeder, KeyboardFeeder);
+            }
         }
 
         private void UpdateFromDevice()

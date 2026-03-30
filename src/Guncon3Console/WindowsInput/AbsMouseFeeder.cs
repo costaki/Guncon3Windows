@@ -36,9 +36,6 @@ namespace Guncon3Console.WindowsInput
         public bool Force4by3 { get; set; } = false;
 
         private byte _prevButtons;
-        private ushort _lastAbsX;
-        private ushort _lastAbsY;
-        private bool _hasLastAbs;
 
         public AbsMouseFeeder() { }
 
@@ -68,9 +65,6 @@ namespace Guncon3Console.WindowsInput
         public void Connect()
         {
             _prevButtons = 0;
-            _hasLastAbs = false;
-            _lastAbsX = 0;
-            _lastAbsY = 0;
         }
 
         public void Disconnect()
@@ -108,10 +102,6 @@ namespace Guncon3Console.WindowsInput
                 absY = ConvertAbsToUShort(y, state.ScreenH);
 
                 flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
-
-                _lastAbsX = absX;
-                _lastAbsY = absY;
-                _hasLastAbs = true;
             }
 
             var buttons = ComputeButtonsMask(state);

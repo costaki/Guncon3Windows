@@ -16,7 +16,7 @@ namespace Guncon3Console.Mapping
                 throw new ArgumentNullException(nameof(path));
 
             if (!File.Exists(path))
-                return new GunMappingModel();
+                return new GunMappingModel { MappingPath = path };
 
             using (var fs = File.OpenRead(path))
             {
@@ -26,7 +26,9 @@ namespace Guncon3Console.Mapping
                 });
 
                 var obj = ser.ReadObject(fs) as GunMappingModel;
-                return obj ?? new GunMappingModel();
+                var model = obj ?? new GunMappingModel();
+                model.MappingPath = path;
+                return model;
             }
         }
 

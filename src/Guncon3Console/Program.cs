@@ -1,14 +1,16 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using System.Windows.Forms;
-using System.Linq;
-using MadWizard.WinUSBNet;
-using GunconUSB;
+﻿using Guncon3Console.Calibration;
+using Guncon3Console.Feeders;
 using Guncon3Console.GunStates;
 using Guncon3Console.TetherScript;
-using Guncon3Console.Feeders;
-using Guncon3Console.Calibration;
+using Guncon3Console.WindowsInput;
+using GunconUSB;
+using MadWizard.WinUSBNet;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
+using System.Xml.Serialization;
 using static Guncon3Console.GunStates.GunState;
 
 namespace Guncon3Console
@@ -77,6 +79,10 @@ namespace Guncon3Console
             // Options:
             //  - test           => open test window showing gun input state (still feeds output)
             //  - 4by3           => enable 4:3-inside-16:9 X-scaling (for MAME setups)
+            //  - calib1=<path>  => player 1 calibration file path (full/relative)
+            //  - calib2=<path>  => player 2 calibration file path (full/relative)
+            //  - map1=<path>    => player 1 mapping json path (full/relative)
+            //  - map2=<path>    => player 2 mapping json path (full/relative)
             //  - relmouse       => output routing flag:
             //                     * SINGLE: applies to P1 (uses TetherScript Relative Mouse)
             //                     * DUAL:   applies to P2 (uses TetherScript Relative Mouse)
@@ -88,6 +94,11 @@ namespace Guncon3Console
             bool force4by3 = args.Any(a => a.Equals("4by3", StringComparison.OrdinalIgnoreCase) || a.Equals("4:3", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
             bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
+
+            string calib1Arg = GetArgValue(args, "calib1");
+            string calib2Arg = GetArgValue(args, "calib2");
+            string map1Arg = GetArgValue(args, "map1");
+            string map2Arg = GetArgValue(args, "map2");
 
             // === "help": show usage and exit ===
             if (args.Any(a => a.Equals("help", StringComparison.OrdinalIgnoreCase) || a.Equals("-h", StringComparison.OrdinalIgnoreCase) || a.Equals("/?", StringComparison.OrdinalIgnoreCase)))
@@ -236,20 +247,62 @@ namespace Guncon3Console
             _player1 = new GunState(Player.Player1, _gun1, mouseFeeder: p1MouseFeeder, keyboardFeeder: p1KeyboardFeeder);
             _player2 = dual ? new GunState(Player.Player2, _gun2, mouseFeeder: p2MouseFeeder, keyboardFeeder: p2KeyboardFeeder) : null;
 
-            LoadMappingsJson(dual, logOnly: true);
-
             string calibPathP1 = null;
+            string calibPathP2 = null;
+            string mapPathP1 = !string.IsNullOrWhiteSpace(map1Arg) ? map1Arg : Path.Combine(AppPath, Guncon3Console.Mapping.GunMappingStore.Player1FileName);
+            string mapPathP2 = null;
             string modeString = null;
             if (!dual)
             {
-                calibPathP1 = Path.Combine(AppPath, RectCalib.DefaultFileName);
+                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, RectCalib.DefaultFileName);
                 modeString = "SINGLE";
             }
             else
             {
-                calibPathP1 = Path.Combine(AppPath, RectCalib.Player1FileName);
+                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, RectCalib.Player1FileName);
+                calibPathP2 = !string.IsNullOrWhiteSpace(calib2Arg) ? calib2Arg : Path.Combine(AppPath, RectCalib.Player2FileName);
+                mapPathP2 = !string.IsNullOrWhiteSpace(map2Arg) ? map2Arg : Path.Combine(AppPath, Guncon3Console.Mapping.GunMappingStore.Player2FileName);
                 modeString = "DUAL";
             }
+
+            _player1.LoadNewMapping(mapPathP1);
+            if (!_player1.MappingIsValid)
+            {
+                Console.WriteLine($"[Mapping - {modeString} mode] Player 1 / Gun 1 mapping not found/invalid. Starting calibration...");
+                LaunchMappingEditorWindowModal(false);
+
+                if (!_player1.MappingIsValid)
+                {
+                    FailAndExit($"[Mapping - {modeString} mode] Cannot run without mapping.");
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[Mapping - {modeString} mode] Player 1 / Gun 1 mapping loaded from " + _player1.Mapping.MappingPath);
+            }
+
+            if (dual)
+            {
+                _player2.LoadNewMapping(mapPathP2);
+                if (!_player2.MappingIsValid)
+                {
+                    Console.WriteLine($"[Mapping - {modeString} mode] Player 2 / Gun 2 mapping not found/invalid. Starting calibration...");
+                    LaunchMappingEditorWindowModal(dual);
+
+                    if (!_player2.MappingIsValid)
+                    {
+                        FailAndExit($"[Mapping - {modeString} mode] Cannot run dual mode without both mappings.");
+                        return;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[Mapping - {modeString} mode] Player 2 / Gun 2 mapping loaded from " + _player2.Mapping.MappingPath);
+                }
+            }
+
+            LoadMappingsJson(dual, logOnly: true);
 
             _player1.LoadNewCalibration(calibPathP1);
             if (!_player1.CalibrationIsValid)
@@ -270,11 +323,12 @@ namespace Guncon3Console
 
             if (dual)
              {
-                _player2.LoadNewCalibration(Path.Combine(AppPath, RectCalib.Player2FileName));
+                _player2.LoadNewCalibration(calibPathP2);
                 if (!_player2.CalibrationIsValid)
                 {
                     Console.WriteLine($"[Calibration - {modeString} mode] Player 2 / Gun 2 calibration not found/invalid. Starting calibration...");
                     RecalibrateGun(_player2, dual);
+
                     if (!_player2.CalibrationIsValid)
                     {
                         FailAndExit($"[Calibration - {modeString} mode] Cannot run dual mode without both calibrations.");
@@ -336,19 +390,7 @@ namespace Guncon3Console
                     }
                     else if (k.Key == ConsoleKey.M)
                     {
-                        try
-                        {
-                            var p1 = _player1.MappingPath;
-                            var p2 = _player2?.MappingPath;
-
-                            var p1Feeders = $"Mouse={p1MouseFeeder?.Name ?? "(none)"}, Keyboard={p1KeyboardFeeder?.Name ?? "(none)"}";
-                            var p2Feeders = dual ? $"Mouse={p2MouseFeeder?.Name ?? "(none)"}, Keyboard={p2KeyboardFeeder?.Name ?? "(none)"}" : null;
-
-                            using (var w = new Guncon3Console.Mapping.MappingEditorForm(p1, p2, enablePlayer2: dual, player1Device: _gun1, player2Device: _gun2, player1Feeders: p1Feeders, player2Feeders: p2Feeders))
-                                w.ShowDialog();
-                            LoadMappingsJson(dual, logOnly: false);
-                        }
-                        catch { }
+                        LaunchMappingEditorWindowModal(dual);
                     }
 
                     Console.WriteLine("Ready to use!   (F12 = recalibrate all,  1/2 = recalibrate P1/P2,  T = test screen,  M = mappings UI,  R = reload mapping.json,  ESC = exit)");
@@ -375,6 +417,26 @@ namespace Guncon3Console
             catch (Exception ex)
             {
                 Console.WriteLine("[Calibration] Error: " + ex.Message);
+            }
+        }
+
+        private static void LaunchMappingEditorWindowModal(bool dual)
+        {
+            try
+            {
+                var p1 = _player1.Mapping.MappingPath;
+                var p2 = dual ? _player2.Mapping.MappingPath : null;
+
+                var p1Feeders = $"Mouse={_player1.MouseFeeder?.Name ?? "(none)"}, Keyboard={_player1.KeyboardFeeder?.Name ?? "(none)"}";
+                var p2Feeders = dual ? $"Mouse={_player2.MouseFeeder?.Name ?? "(none)"}, Keyboard={_player2.KeyboardFeeder?.Name ?? "(none)"}" : null;
+
+                using (var w = new Guncon3Console.Mapping.MappingEditorForm(p1, p2, enablePlayer2: dual, player1Device: _gun1, player2Device: _gun2, player1Feeders: p1Feeders, player2Feeders: p2Feeders))
+                    w.ShowDialog();
+                LoadMappingsJson(dual, logOnly: false);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[Mapping Editor] Error: " + ex.Message);
             }
         }
 
@@ -440,10 +502,10 @@ namespace Guncon3Console
         {
             if (!logOnly)
             {
-                Console.WriteLine("[Mapping] Reloading mapping json…");
-                _player1.LoadMapping();
+                Console.WriteLine("[Mapping] Reloading mappings…");
+                _player1.RefreshMapping();
                 if (dual && _player2 != null)
-                    _player2.LoadMapping();
+                    _player2.RefreshMapping();
             }
 
             Console.WriteLine($"[Mapping] P1 Mouse: {_player1.MouseFeeder?.MappingCount() ?? 0}, P1 Keyboard: {_player1.KeyboardFeeder?.MappingCount() ?? 0}");
@@ -486,6 +548,10 @@ namespace Guncon3Console
             Console.WriteLine("Options:");
             Console.WriteLine("  test         Open a test window showing gun input state.");
             Console.WriteLine("  4by3         Enable 4:3-inside-16:9 X-scaling (MAME-style setups).");
+            Console.WriteLine("  calib1=<path> Player 1 calibration json path.");
+            Console.WriteLine("  calib2=<path> Player 2 calibration json path.");
+            Console.WriteLine("  map1=<path>   Player 1 mapping json path.");
+            Console.WriteLine("  map2=<path>   Player 2 mapping json path.");
             Console.WriteLine("  relmouse     Output routing flag:");
             Console.WriteLine("               - SINGLE: affects P1 (TetherScript Relative Mouse)");
             Console.WriteLine("               - DUAL:   affects P2 (TetherScript Relative Mouse)");
@@ -510,6 +576,30 @@ namespace Guncon3Console
             Console.WriteLine();
             Console.WriteLine("Press any key to exit…");
             try { Console.ReadKey(true); } catch { }
+        }
+
+        private static string GetArgValue(string[] args, string key)
+        {
+            if (args == null || args.Length == 0 || string.IsNullOrWhiteSpace(key))
+                return null;
+
+            string prefix = key + "=";
+            for (int i = 0; i < args.Length; i++)
+            {
+                var a = args[i];
+                if (string.IsNullOrWhiteSpace(a))
+                    continue;
+
+                if (a.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var v = a.Substring(prefix.Length).Trim();
+                    if (v.Length >= 2 && ((v[0] == '\"' && v[v.Length - 1] == '\"') || (v[0] == '\'' && v[v.Length - 1] == '\'')))
+                        v = v.Substring(1, v.Length - 2);
+                    return v;
+                }
+            }
+
+            return null;
         }
 
         // === Full keycode table (4..111) ===
