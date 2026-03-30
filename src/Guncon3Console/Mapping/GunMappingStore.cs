@@ -99,11 +99,11 @@ namespace Guncon3Console.Mapping
                 switch (a.ToUpperInvariant())
                 {
                     case "LEFT":
-                        return global::WindowsInput.MouseButton.LeftButton;
+                        return Guncon3Console.WindowsInput.MouseButton.LeftButton;
                     case "RIGHT":
-                        return global::WindowsInput.MouseButton.RightButton;
+                        return Guncon3Console.WindowsInput.MouseButton.RightButton;
                     case "MIDDLE":
-                        return global::WindowsInput.MouseButton.MiddleButton;
+                        return Guncon3Console.WindowsInput.MouseButton.MiddleButton;
                     default: return null;
                 }
             }

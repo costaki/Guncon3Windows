@@ -1,22 +1,45 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using GunconUSB;
-using WindowsInput;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
 
 namespace Guncon3Console.WindowsInput
 {
+    public enum MouseButton
+    {
+        LeftButton,
+        MiddleButton,
+        RightButton
+    }
+
     internal sealed class AbsMouseFeeder : IMouseFeeder, IFeeder
     {
-        private readonly InputSimulator _input = new InputSimulator();
 
-        // Map: logical gun button (public enum in GunconUSB) -> WindowsInput mouse button
-        private readonly Dictionary<GunButton, global::WindowsInput.MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
+        [DllImport("user32.dll", SetLastError = false)]
+        private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+
+        private const uint MOUSEEVENTF_MOVE = 0x0001;
+        private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        private const uint MOUSEEVENTF_LEFTUP = 0x0004;
+        private const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+        private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+        private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+        private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+        private const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
+        private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+
+        // Map: logical gun button (public enum in GunconUSB) -> mouse button
+        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
         public bool Force4by3 { get; set; } = false;
 
         private byte _prevButtons;
+        private ushort _lastAbsX;
+        private ushort _lastAbsY;
+        private bool _hasLastAbs;
+
         public AbsMouseFeeder() { }
 
         public string Name => "WindowsInput AbsMouse";
@@ -31,7 +54,7 @@ namespace Guncon3Console.WindowsInput
 
         public void AddMapping(GunButton gunButton, dynamic mapping)
         {
-            if (mapping is global::WindowsInput.MouseButton btn)
+            if (mapping is MouseButton btn)
                 _mapping[gunButton] = btn;
         }
 
@@ -45,6 +68,9 @@ namespace Guncon3Console.WindowsInput
         public void Connect()
         {
             _prevButtons = 0;
+            _hasLastAbs = false;
+            _lastAbsX = 0;
+            _lastAbsY = 0;
         }
 
         public void Disconnect()
@@ -53,6 +79,7 @@ namespace Guncon3Console.WindowsInput
 
         public void Feed(IGunState state)
         {
+            uint flags = 0;
             ushort absX = 0;
             ushort absY = 0;
 
@@ -65,18 +92,60 @@ namespace Guncon3Console.WindowsInput
                 if (Force4by3)
                     x = (short)Helper.ConvertRange(4096, 28671, 0, 32767, x);
 
-                // WindowsInput expects unsigned 0..65535 for absolute coords.
+                // mouse_event w/ ABSOLUTE expects normalized 0..65535 when used with MOUSEEVENTF_ABSOLUTE.
                 absX = ConvertSigned32768ToUShort(x);
                 absY = ConvertSigned32768ToUShort(y);
 
-                // Send absolute movement every frame.
-                _input.Mouse.MoveMouseTo(absX, absY);
+                flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+
+                _lastAbsX = absX;
+                _lastAbsY = absY;
+                _hasLastAbs = true;
             }
 
             var buttons = ComputeButtonsMask(state);
 
-            SyncButtons(buttons);
+            flags |= ComputeButtonTransitionFlags(buttons);
+
+            // One mouse_event per Feed call.
+            // When outside the screen, do not include MOVE/ABSOLUTE; only send button transitions.
+            if (flags != 0)
+            {
+                if (!state.IsInsideScreen)
+                {
+                    // Send out-of-bounds.
+                    flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+                    absX = 65535;
+                    absY = 65535;
+                }
+
+                mouse_event(flags, absX, absY, 0, UIntPtr.Zero);
+            }
+
             _prevButtons = buttons;
+        }
+
+        private uint ComputeButtonTransitionFlags(byte buttons)
+        {
+            uint flags = 0;
+
+            flags |= ComputeButtonTransitionFlag(buttons, 0, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP);
+            flags |= ComputeButtonTransitionFlag(buttons, 1, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP);
+            flags |= ComputeButtonTransitionFlag(buttons, 2, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP);
+
+            return flags;
+        }
+
+        private uint ComputeButtonTransitionFlag(byte buttons, int bit, uint downFlag, uint upFlag)
+        {
+            var mask = (byte)(1 << bit);
+            var was = (_prevButtons & mask) != 0;
+            var now = (buttons & mask) != 0;
+
+            if (was == now)
+                return 0;
+
+            return now ? downFlag : upFlag;
         }
 
         private static ushort ConvertSigned32768ToUShort(short v)
@@ -96,36 +165,13 @@ namespace Guncon3Console.WindowsInput
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
-                if (map.Value == global::WindowsInput.MouseButton.LeftButton) btns = (byte)(btns | 1);
-                if (map.Value == global::WindowsInput.MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
-                if (map.Value == global::WindowsInput.MouseButton.MiddleButton) btns = (byte)(btns | (1 << 2));
+                if (map.Value == MouseButton.LeftButton) btns = (byte)(btns | 1);
+                if (map.Value == MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
+                if (map.Value == MouseButton.MiddleButton) btns = (byte)(btns | (1 << 2));
             }
 
             return btns;
         }
 
-        private void SyncButtons(byte buttons)
-        {
-            SyncButton(buttons, 0, _input.Mouse.LeftButtonDown, _input.Mouse.LeftButtonUp);
-            SyncButton(buttons, 1, _input.Mouse.RightButtonDown, _input.Mouse.RightButtonUp);
-            SyncButton(buttons, 2, _input.Mouse.MiddleButtonDown, _input.Mouse.MiddleButtonUp);
-        }
-
-        private void SyncButton(byte buttons, int bit,
-            Func<IMouseSimulator> down,
-            Func<IMouseSimulator> up)
-        {
-            var mask = (byte)(1 << bit);
-            var was = (_prevButtons & mask) != 0;
-            var now = (buttons & mask) != 0;
-
-            if (was == now)
-                return;
-
-            if (now)
-                down();
-            else
-                up();
-        }
     }
 }
