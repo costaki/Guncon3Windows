@@ -121,7 +121,7 @@ namespace Guncon3Console.TetherScript
 
             var absX = state.ABS_X;
             if (Force4by3)
-                absX = (short)Helper.ConvertRange(4096, 28671, 0, 32767, absX);
+                absX = (short)Helper.ConvertRange4By3(absX);
 
             var target = AbsToScreenTarget(absX, state.ABS_Y);
             var targetSm = SmoothTarget(target);

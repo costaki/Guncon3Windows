@@ -90,7 +90,7 @@ namespace Guncon3Console.WindowsInput
 
                 // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
-                    x = (short)Helper.ConvertRange(4096, 28671, 0, 32767, x);
+                    x = (short)Helper.ConvertRange4By3(x);
 
                 // mouse_event w/ ABSOLUTE expects normalized 0..65535 when used with MOUSEEVENTF_ABSOLUTE.
                 absX = ConvertSigned32768ToUShort(x);

@@ -95,7 +95,7 @@ namespace Guncon3Console.TetherScript
 
                 // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
-                    absX = (short)Helper.ConvertRange(4096, 28671, 0, 32767, absX);
+                    absX = (short)Helper.ConvertRange4By3(absX);
             }
 
             // buttons
