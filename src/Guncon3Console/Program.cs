@@ -76,6 +76,7 @@ namespace Guncon3Console
             //
             // Options:
             //  - test           => open test window showing gun input state (still feeds output)
+            //  - 4by3           => enable 4:3-inside-16:9 X-scaling (for MAME setups)
             //  - relmouse       => output routing flag:
             //                     * SINGLE: applies to P1 (uses TetherScript Relative Mouse)
             //                     * DUAL:   applies to P2 (uses TetherScript Relative Mouse)
@@ -84,6 +85,7 @@ namespace Guncon3Console
             //                     * DUAL:   ignored (P2 already uses WindowsInput AbsMouse when not using relmouse)
             bool dual = !args.Any(a => a.Equals("single", StringComparison.OrdinalIgnoreCase));
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
+            bool force4by3 = args.Any(a => a.Equals("4by3", StringComparison.OrdinalIgnoreCase) || a.Equals("4:3", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
             bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
 
@@ -179,6 +181,12 @@ namespace Guncon3Console
             }
 
             TryConnectFeeders(dual);
+
+            _absMouse.Force4by3 = force4by3;
+            _relMouse.Force4by3 = force4by3;
+            _winAbsMouse.Force4by3 = force4by3;
+
+            Console.WriteLine("[Options] 4by3 mode: " + (force4by3 ? "ENABLED" : "DISABLED"));
 
             IMouseFeeder p1MouseFeeder;
             IKeyboardFeeder p1KeyboardFeeder;
@@ -464,7 +472,7 @@ namespace Guncon3Console
             Console.WriteLine("BASE: " + AppDomain.CurrentDomain.BaseDirectory);
             Console.ResetColor();
             Console.WriteLine();
-            Console.WriteLine("4:3 inside 16:9 mode enabled");
+            Console.WriteLine("Use '4by3' flag to enable 4:3 inside 16:9 mode");
         }
 
         private static void PrintHelp()
@@ -477,6 +485,7 @@ namespace Guncon3Console
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  test         Open a test window showing gun input state.");
+            Console.WriteLine("  4by3         Enable 4:3-inside-16:9 X-scaling (MAME-style setups).");
             Console.WriteLine("  relmouse     Output routing flag:");
             Console.WriteLine("               - SINGLE: affects P1 (TetherScript Relative Mouse)");
             Console.WriteLine("               - DUAL:   affects P2 (TetherScript Relative Mouse)");
