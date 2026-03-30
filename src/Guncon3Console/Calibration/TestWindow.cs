@@ -30,10 +30,11 @@ namespace Guncon3Console.Calibration
             _gun2 = gun2;
 
             Text = "Guncon3 Test";
-            FormBorderStyle = FormBorderStyle.Sizable;
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(980, 700);
-            MinimumSize = new Size(980, 700);
+            ClientSize = new Size(780, 620);
+            MinimumSize = new Size(780, 620);
+            MaximizeBox = false;
             BackColor = Color.Black;
             ForeColor = Color.White;
             DoubleBuffered = true;

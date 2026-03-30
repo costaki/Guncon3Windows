@@ -45,8 +45,11 @@ namespace Guncon3Console.Mapping
 
             Text = "Guncon3 Mapping Editor";
             StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Size = new Size(900, 620);
-            MinimumSize = new Size(800, 450);
+            MinimumSize = Size;
+            MaximumSize = Size;
 
             var root = new TableLayoutPanel
             {
