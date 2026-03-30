@@ -40,6 +40,9 @@ namespace Guncon3Console.GunStates
 
         public bool IsInsideScreen => !ScreenIndicator;
 
+        public int ScreenW => Calibration?.ScreenW ?? 0;
+        public int ScreenH => Calibration?.ScreenH ?? 0;
+
         public GunState(Player player, GunconDevice device, IMouseFeeder mouseFeeder = null, IKeyboardFeeder keyboardFeeder = null, RectCalib calibration = null )
         {
             PlayerNum = player;

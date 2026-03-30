@@ -123,7 +123,7 @@ namespace Guncon3Console.TetherScript
             if (Force4by3)
                 absX = (short)Helper.ConvertRange4By3(absX);
 
-            var target = AbsToScreenTarget(absX, state.ABS_Y);
+            var target = AbsToScreenTarget(absX, state.ABS_Y, state.ScreenW, state.ScreenH);
             var targetSm = SmoothTarget(target);
             targetSm = Median3(targetSm);
             var cur = GetCursorPosSafe();
@@ -219,18 +219,21 @@ namespace Guncon3Console.TetherScript
             return v;
         }
 
-        private static POINT AbsToScreenTarget(short absX, short absY)
+        private static POINT AbsToScreenTarget(short absX, short absY, int screenW, int screenH)
         {
-            // ABS is expected 0..32767 (see Program.ApplyRectCalib). Map to primary screen pixels.
+            // ABS is expected 0..32767 (see RectCalib.ApplyCalibration). Map to calibrated screen pixels.
+            // If calibration screen size is missing, fall back to primary screen.
             var b = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
+            int w = (screenW > 0) ? screenW : b.Width;
+            int h = (screenH > 0) ? screenH : b.Height;
 
             double nx = absX / 32767.0;
             double ny = absY / 32767.0;
             if (nx < 0) nx = 0; else if (nx > 1) nx = 1;
             if (ny < 0) ny = 0; else if (ny > 1) ny = 1;
 
-            int x = b.Left + (int)Math.Round(nx * (b.Width - 1));
-            int y = b.Top + (int)Math.Round(ny * (b.Height - 1));
+            int x = b.Left + (int)Math.Round(nx * (w - 1));
+            int y = b.Top + (int)Math.Round(ny * (h - 1));
             return new POINT { X = x, Y = y };
         }
 

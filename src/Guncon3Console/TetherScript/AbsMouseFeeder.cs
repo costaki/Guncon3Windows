@@ -95,7 +95,18 @@ namespace Guncon3Console.TetherScript
 
                 // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
-                    absX = (short)Helper.ConvertRange4By3(absX);
+                {
+                    if (!Helper.IsInsideCentered4By3(absX))
+                    {
+                        // Treat outside the 4:3 region as out-of-bounds.
+                        absX = (short)Helper.GunAxisMax;
+                        absY = (short)Helper.GunAxisMax;
+                    }
+                    else
+                    {
+                        absX = (short)Helper.ConvertRange4By3(absX);
+                    }
+                }
             }
 
             // buttons

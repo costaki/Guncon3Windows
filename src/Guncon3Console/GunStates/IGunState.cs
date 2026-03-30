@@ -10,5 +10,8 @@ namespace Guncon3Console.GunStates
         short ABS_X { get; }
         short ABS_Y { get; }
         bool IsInsideScreen { get; }
+
+        int ScreenW { get; }
+        int ScreenH { get; }
     }
 }

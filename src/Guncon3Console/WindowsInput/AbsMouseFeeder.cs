@@ -90,11 +90,22 @@ namespace Guncon3Console.WindowsInput
 
                 // 4:3 inside 16:9 (MAME)
                 if (Force4by3)
-                    x = (short)Helper.ConvertRange4By3(x);
+                {
+                    if (!Helper.IsInsideCentered4By3(x))
+                    {
+                        // Out-of-bounds when outside the 4:3 region.
+                        x = (short)Helper.GunAxisMax;
+                        y = (short)Helper.GunAxisMax;
+                    }
+                    else
+                    {
+                        x = (short)Helper.ConvertRange4By3(x);
+                    }
+                }
 
                 // mouse_event w/ ABSOLUTE expects normalized 0..65535 when used with MOUSEEVENTF_ABSOLUTE.
-                absX = ConvertSigned32768ToUShort(x);
-                absY = ConvertSigned32768ToUShort(y);
+                absX = ConvertAbsToUShort(x, state.ScreenW);
+                absY = ConvertAbsToUShort(y, state.ScreenH);
 
                 flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
 
@@ -148,13 +159,24 @@ namespace Guncon3Console.WindowsInput
             return now ? downFlag : upFlag;
         }
 
-        private static ushort ConvertSigned32768ToUShort(short v)
+        private static ushort ConvertAbsToUShort(short abs, int calibratedSize)
         {
-            // Gun range is expected to be 0..32767 when in-screen, but keep behavior stable if negative.
-            if (v <= 0)
+            // RectCalib produces 0..32767 regardless of resolution. If we know the calibrated resolution,
+            // map that into 0..65535 so the cursor reaches the full screen extents.
+            if (abs <= 0)
                 return 0;
 
-            return (ushort)Math.Min(65535, v * 2);
+            if (calibratedSize > 1)
+            {
+                // Convert abs(0..32767) -> pixel(0..size-1) -> normalized(0..65535)
+                double n = abs / 32767.0;
+                if (n < 0) n = 0; else if (n > 1) n = 1;
+                int px = (int)Math.Round(n * (calibratedSize - 1));
+                return (ushort)Math.Round(px * (65535.0 / (calibratedSize - 1)));
+            }
+
+            // Fallback: keep old behavior.
+            return (ushort)Math.Min(65535, abs * 2);
         }
 
         private byte ComputeButtonsMask(IGunState state)
