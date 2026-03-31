@@ -3,6 +3,7 @@ using Guncon3Console.GunStates;
 using GunconUSB;
 using System;
 using System.Drawing;
+using Guncon3Console.Common;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;

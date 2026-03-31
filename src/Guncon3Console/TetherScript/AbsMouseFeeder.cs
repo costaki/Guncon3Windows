@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
+using Guncon3Console.Common;
 
 // Important: always use the enum from the GunconUSB project (singular)
 

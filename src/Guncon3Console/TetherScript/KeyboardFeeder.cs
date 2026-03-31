@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using GunconUSB; // <-- GunButton
 using Guncon3Console.GunStates; // <-- IGunState
 using Guncon3Console.Feeders;
+using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {

@@ -1,3 +1,4 @@
+using Guncon3Console.Common;
 using System;
 using System.IO;
 using System.Runtime.Serialization;
@@ -113,11 +114,11 @@ namespace Guncon3Console.Mapping
             switch (a.ToUpperInvariant())
             {
                 case "LEFT":
-                    return Guncon3Console.TetherScript.MouseButton.Left;
+                    return MouseButton.Left;
                 case "RIGHT":
-                    return Guncon3Console.TetherScript.MouseButton.Right;
+                    return MouseButton.Right;
                 case "MIDDLE":
-                    return Guncon3Console.TetherScript.MouseButton.Middle;
+                    return MouseButton.Middle;
                 default: return null;
             }
         }

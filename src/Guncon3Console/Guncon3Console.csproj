@@ -113,6 +113,8 @@
     <Compile Include="Calibration\RectCalibEditorForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Common\LogArgs.cs" />
+    <Compile Include="Common\MouseButton.cs" />
     <Compile Include="Feeders\IFeeder.cs" />
     <Compile Include="Feeders\IKeyboardFeeder.cs" />
     <Compile Include="Feeders\IMouseFeeder.cs" />
@@ -140,6 +142,7 @@
     </Compile>
     <Compile Include="TetherScript\TetherScriptMarshal.cs" />
     <Compile Include="vMulti\AbsMouseFeeder.cs" />
+    <Compile Include="vMulti\VMultiHidController.cs" />
     <Compile Include="WindowsInput\AbsMouseFeeder.cs" />
     <Compile Include="WindowsInput\KeyboardFeeder.cs" />
   </ItemGroup>

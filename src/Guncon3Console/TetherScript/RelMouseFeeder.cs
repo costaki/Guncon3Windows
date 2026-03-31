@@ -5,6 +5,7 @@ using System.Threading;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
+using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {

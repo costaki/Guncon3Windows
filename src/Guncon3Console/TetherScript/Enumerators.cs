@@ -1,12 +1,5 @@
 ﻿namespace Guncon3Console.TetherScript
 {
-    public enum MouseButton
-    {
-        Left,
-        Right,
-        Middle
-    }
-
     // HID Usage ID keycodes used by the TetherScript virtual keyboard feeder.
     // Values match the table printed by Program.PrintKeyCodes (4..111).
     public enum HidKeyCode : byte

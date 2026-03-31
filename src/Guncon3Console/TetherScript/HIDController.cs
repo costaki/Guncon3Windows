@@ -4,11 +4,10 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using GunconUSB;
+using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    public class LogArgs : EventArgs { public string Msg; }
-
     class HIDController
     {
         public event EventHandler<LogArgs> OnLog;
