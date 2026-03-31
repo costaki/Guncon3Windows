@@ -161,7 +161,7 @@ namespace Guncon3Console.vMulti
             return true;
         }
 
-        private bool TryGetDeviceInterfacePath(IntPtr info, ref SP_DEVICE_INTERFACE_DATA ifData, out string path)
+        private new bool TryGetDeviceInterfacePath(IntPtr info, ref SP_DEVICE_INTERFACE_DATA ifData, out string path)
         {
             if (base.TryGetDeviceInterfacePath(info, ref ifData, out path))
                 return true;
