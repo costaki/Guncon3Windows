@@ -7,35 +7,29 @@ using GunconUSB;
 
 namespace Guncon3Console.WindowsInput
 {
-    internal sealed class KeyboardFeeder : IKeyboardFeeder
+    internal sealed class KeyboardFeeder : BaseFeeder<ushort>, IKeyboardFeeder
     {
-        // Map: logical gun button (public enum in GunconUSB) -> Win32 virtual-key code
-        private readonly Dictionary<GunButton, ushort> _mapping = new Dictionary<GunButton, ushort>();
-
         private readonly HashSet<ushort> _prevDown = new HashSet<ushort>();
         private readonly HashSet<ushort> _nowDown = new HashSet<ushort>();
-
         private readonly NativeMethods.INPUT[] _singleInput = new NativeMethods.INPUT[1];
 
-        public string Name => "WindowsInput Keyboard";
+        public override string Name => "WindowsInput Keyboard";
+        public override bool IsConnected => true;
 
-        public bool IsConnected => true;
+        public override void Connect() { }
+        public override void Disconnect() { }
 
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
+        protected override ushort ConvertMapping(dynamic mapping)
         {
             if (mapping is HidKeyCode hidEnum)
             {
                 var translated = TranslateHidKeyCode(hidEnum);
                 if (translated.HasValue)
-                    _mapping[gunButton] = translated.Value;
-                return;
+                    return translated.Value;
             }
+            if (mapping is ushort u)
+                return u;
+            return base.ConvertMapping((ushort)mapping);
         }
 
         private static ushort? TranslateHidKeyCode(HidKeyCode key)
@@ -132,33 +126,7 @@ namespace Guncon3Console.WindowsInput
             return null;
         }
 
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
-        {
-            _prevDown.Clear();
-        }
-
-        public void Disconnect()
-        {
-            try
-            {
-                foreach (var key in _prevDown)
-                    SendKey(key, false);
-            }
-            catch { }
-            finally
-            {
-                _prevDown.Clear();
-            }
-        }
-
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             if (state == null)
                 throw new ArgumentNullException(nameof(state));

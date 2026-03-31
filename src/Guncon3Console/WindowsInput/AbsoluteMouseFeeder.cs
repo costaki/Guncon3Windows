@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
@@ -7,50 +6,17 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.WindowsInput
 {
-    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IFeeder
+    internal sealed class AbsoluteMouseFeeder : BaseFeeder<MouseButton>, IMouseFeeder
     {
-        // Map: logical gun button (public enum in GunconUSB) -> mouse button
-        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
-
         public bool Force4by3 { get; set; } = false;
-
         private byte _prevButtons;
-
         public AbsoluteMouseFeeder() { }
+        public override string Name => "WindowsInput AbsMouse";
+        public override bool IsConnected => true;
+        public override void Connect() => _prevButtons = 0;
+        public override void Disconnect() { }
 
-        public string Name => "WindowsInput AbsMouse";
-
-        public bool IsConnected => true;
-
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
-        {
-            if (mapping is MouseButton btn)
-                _mapping[gunButton] = btn;
-        }
-
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
-        {
-            _prevButtons = 0;
-        }
-
-        public void Disconnect()
-        {
-        }
-
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             uint flags = 0;
             ushort absX = 0;

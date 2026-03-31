@@ -1,65 +1,38 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using GunconUSB; // <-- GunButton
-using Guncon3Console.GunStates; // <-- IGunState
+using GunconUSB;
+using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
 using Guncon3Console.Common;
+using System.Threading;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class KeyboardFeeder : ITetherScriptFeeder, IKeyboardFeeder, IDisposable
+    internal sealed class KeyboardFeeder : BaseDisposableFeeder<byte>, ITetherScriptFeeder, IKeyboardFeeder
     {
         private readonly HidController _hid = new HidController();
         public HidController Hid => _hid;
-
         private readonly uint _fTimeout = 5000;
-
-        // Logical mapping -> keycode (numbers from "keys")
-        private readonly Dictionary<GunButton, byte> _mapping = new Dictionary<GunButton, byte>();
-
-        // Last sent state
         private readonly byte[] _lastKeys = new byte[6];
         private bool _lastHadAny = false;
         private long _lastSendTicks = 0;
-        private readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks; // ~500 Hz máx
+        private readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks;
         public KeyboardFeeder() { }
-
-        public string Name => "TetherScript Keyboard";
-
+        public override string Name => "TetherScript Keyboard";
         public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
         public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
-
-        public bool IsConnected => _hid.Connected;
-
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
+        public override bool IsConnected => _hid.Connected;
+        protected override byte ConvertMapping(dynamic mapping)
         {
-            try
-            {
-                if (mapping is byte b)
-                    _mapping[gunButton] = b;
-                else if (mapping is int i)
-                    _mapping[gunButton] = unchecked((byte)i);
-                else if (mapping is HidKeyCode hidEnum)
-                    _mapping[gunButton] = (byte)hidEnum;
-            }
-            catch { }
+            if (mapping is byte b)
+                return b;
+            if (mapping is int i)
+                return unchecked((byte)i);
+            if (mapping is HidKeyCode hidEnum)
+                return (byte)hidEnum;
+            return base.ConvertMapping((byte)mapping);
         }
-
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
+        public override void Connect()
         {
             _hid.OnLog += OnHidLog;
             _hid.VendorID = VendorId;
@@ -67,32 +40,25 @@ namespace Guncon3Console.TetherScript
             _hid.Connect();
             if (!_hid.Connected)
                 throw new Exception("Could not connect to TetherScript Keyboard.");
-
             Array.Clear(_lastKeys, 0, _lastKeys.Length);
             _lastHadAny = false;
             _lastSendTicks = 0;
         }
-
-        public void Disconnect()
+        public override void Disconnect()
         {
-            try
-            {
-                // Release keys for safety
-                Send(0, 0, 0, 0, 0, 0, 0, 0);
-            }
-            catch { }
+            try { Send(0, 0, 0, 0, 0, 0, 0, 0); } catch { }
             _hid.Disconnect();
             _hid.OnLog -= OnHidLog;
         }
-
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Disconnect();
-            _hid.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _hid.Dispose();
+            }
         }
-
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
-
         private void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
@@ -113,7 +79,6 @@ namespace Guncon3Console.TetherScript
             byte[] buf = TetherScriptMarshal.StructToBytes(data);
             _hid.SendData(buf, (uint)buf.Length);
         }
-
         public void Ping()
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
@@ -125,9 +90,7 @@ namespace Guncon3Console.TetherScript
             byte[] buf = TetherScriptMarshal.StructToBytes(data);
             _hid.SendData(buf, (uint)buf.Length);
         }
-
-        // Hold keys: no "machine-gun" repeats
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
 

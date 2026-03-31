@@ -1,76 +1,53 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
 using Guncon3Console.Common;
-
-// Important: always use the enum from the GunconUSB project (singular)
-
+using System.Threading;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, ITetherScriptFeeder, IDisposable
+    internal sealed class AbsoluteMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder, ITetherScriptFeeder
     {
         private readonly HidController _hid = new HidController();
         public HidController Hid => _hid;
-
-        // Map: logical gun button (public enum in GunconUSB) -> TetherScript virtual mouse button
-        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
-
         public bool Force4by3 { get; set; } = false;
         private byte _btns;
 
         public AbsoluteMouseFeeder() { }
 
-        public string Name => "TetherScript AbsMouse";
+        public override string Name => "TetherScript AbsMouse";
 
         public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
         public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;
 
-        public bool IsConnected => _hid.Connected;
+        public override bool IsConnected => _hid.Connected;
 
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
-        {
-            if (mapping is MouseButton btn)
-                _mapping[gunButton] = btn;
-        }
-
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
+        public override void Connect()
         {
             _hid.OnLog += OnHidLog;
-            _hid.VendorID = VendorId;            // VendorId TetherScript
-            _hid.ProductID = ProductId;  // ProductId Mouse Abs
+            _hid.VendorID = VendorId;
+            _hid.ProductID = ProductId;
             _hid.Connect();
 
             if (!_hid.Connected)
                 throw new Exception("Coud not connect to TetherScript's AbsMouse");
         }
 
-        public void Disconnect()
+        public override void Disconnect()
         {
             _hid.Disconnect();
             _hid.OnLog -= OnHidLog;
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Disconnect();
-            _hid.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _hid.Dispose();
+            }
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
@@ -90,7 +67,7 @@ namespace Guncon3Console.TetherScript
             _hid.SendData(buf, (uint)buf.Length);
         }
 
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             short absX = 0;
             short absY = 0;

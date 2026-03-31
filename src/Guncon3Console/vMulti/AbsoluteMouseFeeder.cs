@@ -3,7 +3,6 @@ using Guncon3Console.GunStates;
 using Guncon3Console.Common;
 using GunconUSB;
 using System;
-using System.Collections.Generic;
 
 namespace Guncon3Console.vMulti
 {
@@ -17,64 +16,45 @@ namespace Guncon3Console.vMulti
     /// - write a 0x41-byte control report:
     ///     [VMultiControlReportHeader][VMultiMouseReport][padding...]
     /// </summary>
-    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IDisposable
+    internal sealed class AbsoluteMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder
     {
-        private readonly HidController HID = new HidController();
-
-        // Logical gun button -> vmulti mouse button mapping
-        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
+        private readonly HidController _hid = new HidController();
 
         public bool Force4by3 { get; set; } = false;
 
         private byte _buttons;
 
-        public string Name => "vMulti AbsMouse";
+        public override string Name => "vMulti AbsMouse";
 
-        public bool IsConnected => HID.Connected;
+        public override bool IsConnected => _hid.Connected;
 
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
+        public override void Connect()
         {
-            if (mapping is MouseButton btn)
-                _mapping[gunButton] = btn;
-        }
+            _hid.OnLog += OnHidLog;
+            _hid.Connect();
 
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
-        {
-            HID.OnLog += OnHidLog;
-            HID.Connect();
-
-            if (!HID.Connected)
+            if (!_hid.Connected)
                 throw new Exception("Could not connect to vmulti absolute mouse control device.");
         }
 
-        public void Disconnect()
+        public override void Disconnect()
         {
-            HID.Disconnect();
-            HID.OnLog -= OnHidLog;
+            _hid.Disconnect();
+            _hid.OnLog -= OnHidLog;
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Disconnect();
-            HID.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _hid.Dispose();
+            }
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             short absX = 0;
             short absY = 0;
@@ -124,7 +104,7 @@ namespace Guncon3Console.vMulti
                 }
             }
 
-            HID.SendAbsoluteMouse(_buttons, x, y, 0);
+            _hid.SendAbsoluteMouse(_buttons, x, y, 0);
         }
 
         private static ushort ClampToUShort15(short value)

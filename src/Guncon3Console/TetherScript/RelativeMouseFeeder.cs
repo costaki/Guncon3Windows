@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using GunconUSB;
@@ -9,15 +8,11 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelativeMouseFeeder : IMouseFeeder, ITetherScriptFeeder, IDisposable
+    internal sealed class RelativeMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder, ITetherScriptFeeder
     {
         private readonly HidController _hid = new HidController();
         public HidController Hid => _hid;
-
-        private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
-
         private byte _btns;
-
         public bool Force4by3 { get; set; } = false;
 
         // Tunables (servo)
@@ -47,33 +42,14 @@ namespace Guncon3Console.TetherScript
         private int _mCount;
         public RelativeMouseFeeder() { }
 
-        public string Name => "TetherScript RelMouse";
+        public override string Name => "TetherScript RelMouse";
 
         public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
         public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
 
-        public bool IsConnected => _hid.Connected;
+        public override bool IsConnected => _hid.Connected;
 
-        public void Log(string message) => Console.WriteLine("[" + Name + "]: " + message);
-
-        public void ClearMapping() => _mapping.Clear();
-
-        public int MappingCount() => _mapping.Count;
-
-        public void AddMapping(GunButton gunButton, dynamic mapping)
-        {
-            if (mapping is MouseButton btn)
-                _mapping[gunButton] = btn;
-        }
-
-        public dynamic GetMapping(GunButton gunButton)
-        {
-            if (_mapping.TryGetValue(gunButton, out var v))
-                return v;
-            return null;
-        }
-
-        public void Connect()
+        public override void Connect()
         {
             _hid.OnLog += OnHidLog;
             _hid.VendorID = VendorId;
@@ -86,21 +62,24 @@ namespace Guncon3Console.TetherScript
             _btns = 0;
         }
 
-        public void Disconnect()
+        public override void Disconnect()
         {
             _hid.Disconnect();
             _hid.OnLog -= OnHidLog;
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Disconnect();
-            _hid.Dispose();
+            if (disposing)
+            {
+                Disconnect();
+                _hid.Dispose();
+            }
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
-        public void Feed(IGunState state)
+        public override void Feed(IGunState state)
         {
             // Buttons
             _btns = 0;
@@ -332,4 +311,5 @@ namespace Guncon3Console.TetherScript
             return (sbyte)v;
         }
     }
+    // ...structs...
 }

@@ -117,6 +117,7 @@
     <Compile Include="Common\Hid\IHidConnection.cs" />
     <Compile Include="Common\LogArgs.cs" />
     <Compile Include="Common\MouseButton.cs" />
+    <Compile Include="Feeders\BaseFeeder.cs" />
     <Compile Include="Feeders\IFeeder.cs" />
     <Compile Include="Feeders\IKeyboardFeeder.cs" />
     <Compile Include="Feeders\IMouseFeeder.cs" />
