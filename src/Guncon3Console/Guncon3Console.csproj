@@ -147,6 +147,7 @@
     <Compile Include="vMulti\HidController.cs" />
     <Compile Include="WindowsInput\AbsoluteMouseFeeder.cs" />
     <Compile Include="WindowsInput\KeyboardFeeder.cs" />
+    <Compile Include="WindowsInput\NativeMethods.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">

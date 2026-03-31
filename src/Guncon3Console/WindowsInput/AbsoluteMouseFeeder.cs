@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
 
 namespace Guncon3Console.WindowsInput
 {
-    public enum MouseButton
+    internal enum MouseButton
     {
         LeftButton,
         MiddleButton,
@@ -16,20 +15,6 @@ namespace Guncon3Console.WindowsInput
 
     internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IFeeder
     {
-
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
-
-        private const uint MOUSEEVENTF_MOVE = 0x0001;
-        private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-        private const uint MOUSEEVENTF_LEFTUP = 0x0004;
-        private const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
-        private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
-        private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
-        private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
-        private const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
-        private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
-
         // Map: logical gun button (public enum in GunconUSB) -> mouse button
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
@@ -101,7 +86,7 @@ namespace Guncon3Console.WindowsInput
                 absX = ConvertAbsToUShort(x, state.ScreenW);
                 absY = ConvertAbsToUShort(y, state.ScreenH);
 
-                flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+                flags |= (NativeMethods.MOUSEEVENTF_MOVE | NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_VIRTUALDESK);
             }
 
             var buttons = ComputeButtonsMask(state);
@@ -115,12 +100,12 @@ namespace Guncon3Console.WindowsInput
                 if (!state.IsInsideScreen)
                 {
                     // Send out-of-bounds.
-                    flags |= (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+                    flags |= (NativeMethods.MOUSEEVENTF_MOVE | NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_VIRTUALDESK);
                     absX = 65535;
                     absY = 65535;
                 }
 
-                mouse_event(flags, absX, absY, 0, UIntPtr.Zero);
+                NativeMethods.mouse_event(flags, absX, absY, 0, UIntPtr.Zero);
             }
 
             _prevButtons = buttons;
@@ -130,9 +115,9 @@ namespace Guncon3Console.WindowsInput
         {
             uint flags = 0;
 
-            flags |= ComputeButtonTransitionFlag(buttons, 0, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP);
-            flags |= ComputeButtonTransitionFlag(buttons, 1, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP);
-            flags |= ComputeButtonTransitionFlag(buttons, 2, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP);
+            flags |= ComputeButtonTransitionFlag(buttons, 0, NativeMethods.MOUSEEVENTF_LEFTDOWN, NativeMethods.MOUSEEVENTF_LEFTUP);
+            flags |= ComputeButtonTransitionFlag(buttons, 1, NativeMethods.MOUSEEVENTF_RIGHTDOWN, NativeMethods.MOUSEEVENTF_RIGHTUP);
+            flags |= ComputeButtonTransitionFlag(buttons, 2, NativeMethods.MOUSEEVENTF_MIDDLEDOWN, NativeMethods.MOUSEEVENTF_MIDDLEUP);
 
             return flags;
         }

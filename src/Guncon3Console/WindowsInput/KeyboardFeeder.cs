@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using Guncon3Console.Feeders;
 using Guncon3Console.GunStates;
 using Guncon3Console.TetherScript;
@@ -16,11 +15,7 @@ namespace Guncon3Console.WindowsInput
         private readonly HashSet<ushort> _prevDown = new HashSet<ushort>();
         private readonly HashSet<ushort> _nowDown = new HashSet<ushort>();
 
-        private readonly INPUT[] _singleInput = new INPUT[1];
-
-        private const uint INPUT_KEYBOARD = 1;
-        private const uint KEYEVENTF_KEYUP = 0x0002;
-        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+        private readonly NativeMethods.INPUT[] _singleInput = new NativeMethods.INPUT[1];
 
         public string Name => "WindowsInput Keyboard";
 
@@ -204,38 +199,29 @@ namespace Guncon3Console.WindowsInput
 
         private void SendKey(ushort vk, bool down)
         {
-            ushort scan = (ushort)(MapVirtualKey(vk, 0) & 0xFF);
+            ushort scan = (ushort)(NativeMethods.MapVirtualKey(vk, 0) & 0xFF);
             bool extended = IsExtendedKey(vk);
-            uint flags = down ? 0u : KEYEVENTF_KEYUP;
-            if (extended) flags |= KEYEVENTF_EXTENDEDKEY;
+            uint flags = down ? 0u : NativeMethods.KEYEVENTF_KEYUP;
+            if (extended) flags |= NativeMethods.KEYEVENTF_EXTENDEDKEY;
 
-            _singleInput[0] = new INPUT
+            _singleInput[0] = new NativeMethods.INPUT
             {
-                type = INPUT_KEYBOARD,
-                Data = new MOUSEKEYBDHARDWAREINPUT
+                type = NativeMethods.INPUT_KEYBOARD,
+                Data = new NativeMethods.MOUSEKEYBDHARDWAREINPUT
                 {
-                    ki = new KEYBDINPUT
+                    ki = new NativeMethods.KEYBDINPUT
                     {
                         wVk = vk,
                         wScan = scan,
                         dwFlags = flags,
                         time = 0,
-                        dwExtraInfo = GetMessageExtraInfo()
+                        dwExtraInfo = NativeMethods.GetMessageExtraInfo()
                     }
                 }
             };
 
-            _ = SendInput(1, _singleInput, Marshal.SizeOf(typeof(INPUT)));
+            _ = NativeMethods.SendInput(1, _singleInput, System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.INPUT)));
         }
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
-        [DllImport("user32.dll")]
-        private static extern uint MapVirtualKey(uint uCode, uint uMapType);
-
-        [DllImport("user32.dll")]
-        private static extern UIntPtr GetMessageExtraInfo();
 
         private static bool IsExtendedKey(ushort vk)
         {
@@ -266,53 +252,5 @@ namespace Guncon3Console.WindowsInput
             return false;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct INPUT
-        {
-            public uint type;
-            public MOUSEKEYBDHARDWAREINPUT Data;
-        }
-
-        [StructLayout(LayoutKind.Explicit)]
-        private struct MOUSEKEYBDHARDWAREINPUT
-        {
-            [FieldOffset(0)]
-            public MOUSEINPUT mi;
-
-            [FieldOffset(0)]
-            public KEYBDINPUT ki;
-
-            [FieldOffset(0)]
-            public HARDWAREINPUT hi;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct MOUSEINPUT
-        {
-            public int dx;
-            public int dy;
-            public uint mouseData;
-            public uint dwFlags;
-            public uint time;
-            public UIntPtr dwExtraInfo;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct HARDWAREINPUT
-        {
-            public uint uMsg;
-            public ushort wParamL;
-            public ushort wParamH;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct KEYBDINPUT
-        {
-            public ushort wVk;
-            public ushort wScan;
-            public uint dwFlags;
-            public uint time;
-            public UIntPtr dwExtraInfo;
-        }
     }
 }
