@@ -5,10 +5,10 @@ using System.Windows.Forms;
 
 namespace Guncon3Console.Calibration
 {
-    internal sealed class RectCalibEditorForm : Form
+    internal sealed class CalibrationEditorForm : Form
     {
         private readonly string _path;
-        private RectCalib _model;
+        private GunCalibration _model;
         private bool _dirty;
 
         private NumericUpDown _rawMinX;
@@ -19,7 +19,7 @@ namespace Guncon3Console.Calibration
         private NumericUpDown _screenH;
         private CheckBox _invertY;
 
-        public RectCalibEditorForm(string calibrationPath)
+        public CalibrationEditorForm(string calibrationPath)
         {
             if (string.IsNullOrWhiteSpace(calibrationPath))
                 throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
@@ -153,7 +153,7 @@ namespace Guncon3Console.Calibration
             var num = new NumericUpDown { Dock = DockStyle.Left, Minimum = min, Maximum = max, DecimalPlaces = decimals, Width = 140 };
             num.ValueChanged += (s, e) =>
             {
-                var f = num.FindForm() as RectCalibEditorForm;
+                var f = num.FindForm() as CalibrationEditorForm;
                 if (f != null) f._dirty = true;
             };
 
@@ -164,7 +164,7 @@ namespace Guncon3Console.Calibration
 
         private void LoadModel()
         {
-            _model = RectCalib.Load(_path) ?? new RectCalib(_path);
+            _model = GunCalibration.Load(_path) ?? new GunCalibration(_path);
 
             _rawMinX.Value = (decimal)_model.RawMinX;
             _rawMaxX.Value = (decimal)_model.RawMaxX;
@@ -182,7 +182,7 @@ namespace Guncon3Console.Calibration
             try
             {
                 if (_model == null)
-                    _model = new RectCalib(_path);
+                    _model = new GunCalibration(_path);
 
                 _model.RawMinX = (double)_rawMinX.Value;
                 _model.RawMaxX = (double)_rawMaxX.Value;

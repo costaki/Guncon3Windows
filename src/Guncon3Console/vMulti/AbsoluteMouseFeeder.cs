@@ -17,9 +17,9 @@ namespace Guncon3Console.vMulti
     /// - write a 0x41-byte control report:
     ///     [VMultiControlReportHeader][VMultiMouseReport][padding...]
     /// </summary>
-    internal sealed class VMultiAbsMouseFeeder : IMouseFeeder
+    internal sealed class AbsoluteMouseFeeder : IMouseFeeder
     {
-        private readonly VMultiHidController HID = new VMultiHidController();
+        private readonly HidController HID = new HidController();
 
         // Logical gun button -> vmulti mouse button mapping
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
@@ -107,13 +107,13 @@ namespace Guncon3Console.vMulti
                 switch (map.Value)
                 {
                     case MouseButton.Left:
-                        _buttons |= VMultiHidController.MOUSE_BUTTON_1;
+                        _buttons |= HidController.MOUSE_BUTTON_1;
                         break;
                     case MouseButton.Right:
-                        _buttons |= VMultiHidController.MOUSE_BUTTON_2;
+                        _buttons |= HidController.MOUSE_BUTTON_2;
                         break;
                     case MouseButton.Middle:
-                        _buttons |= VMultiHidController.MOUSE_BUTTON_3;
+                        _buttons |= HidController.MOUSE_BUTTON_3;
                         break;
                 }
             }

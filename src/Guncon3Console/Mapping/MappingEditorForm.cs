@@ -255,7 +255,7 @@ namespace Guncon3Console.Mapping
                 if (!Confirm("Start calibration for Player 1?"))
                     return;
 
-                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _enableP2 ? RectCalib.Player1FileName : RectCalib.DefaultFileName);
+                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _enableP2 ? GunCalibration.Player1FileName : GunCalibration.DefaultFileName);
                 using (var w = new Guncon3Console.Calibration.CalibrationWindow(path, "Calibrating: Player 1 / Gun 1", _p1Device))
                     w.ShowDialog(this);
                 return;
@@ -272,7 +272,7 @@ namespace Guncon3Console.Mapping
                 if (!Confirm("Start calibration for Player 2?"))
                     return;
 
-                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, RectCalib.Player2FileName);
+                var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GunCalibration.Player2FileName);
                 using (var w = new Guncon3Console.Calibration.CalibrationWindow(path, "Calibrating: Player 2 / Gun 2", _p2Device))
                     w.ShowDialog(this);
                 return;
@@ -557,10 +557,10 @@ namespace Guncon3Console.Mapping
                 return;
 
             var path = (player == 1)
-                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _enableP2 ? RectCalib.Player1FileName : RectCalib.DefaultFileName)
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, RectCalib.Player2FileName);
+                ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _enableP2 ? GunCalibration.Player1FileName : GunCalibration.DefaultFileName)
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GunCalibration.Player2FileName);
 
-            using (var w = new RectCalibEditorForm(path))
+            using (var w = new CalibrationEditorForm(path))
                 w.ShowDialog(this);
 
             // Ensure running state picks up manual edits.

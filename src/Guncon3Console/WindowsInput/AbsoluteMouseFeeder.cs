@@ -14,7 +14,7 @@ namespace Guncon3Console.WindowsInput
         RightButton
     }
 
-    internal sealed class AbsMouseFeeder : IMouseFeeder, IFeeder
+    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IFeeder
     {
 
         [DllImport("user32.dll", SetLastError = false)]
@@ -37,7 +37,7 @@ namespace Guncon3Console.WindowsInput
 
         private byte _prevButtons;
 
-        public AbsMouseFeeder() { }
+        public AbsoluteMouseFeeder() { }
 
         public string Name => "WindowsInput AbsMouse";
 

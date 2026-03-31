@@ -9,10 +9,10 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelMouseFeeder : IMouseFeeder, ITetherScriptFeeder
+    internal sealed class RelativeMouseFeeder : IMouseFeeder, ITetherScriptFeeder
     {
-        private readonly HIDController _hid = new HIDController();
-        public HIDController Hid => _hid;
+        private readonly HidController _hid = new HidController();
+        public HidController Hid => _hid;
 
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
 
@@ -45,7 +45,7 @@ namespace Guncon3Console.TetherScript
         private int _m1x, _m2x, _m3x;
         private int _m1y, _m2y, _m3y;
         private int _mCount;
-        public RelMouseFeeder() { }
+        public RelativeMouseFeeder() { }
 
         public string Name => "TetherScript RelMouse";
 

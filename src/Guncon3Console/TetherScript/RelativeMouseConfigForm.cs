@@ -13,11 +13,11 @@ using static Guncon3Console.GunStates.GunState;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelMouseManualForm : Form
+    internal sealed class RelativeMouseConfigForm : Form
     {
-        private readonly HIDController _hid;
+        private readonly HidController _hid;
 
-        private readonly RelMouseFeeder _feeder = new RelMouseFeeder();
+        private readonly RelativeMouseFeeder _feeder = new RelativeMouseFeeder();
 
         private readonly ToolTip _tip = new ToolTip();
 
@@ -52,7 +52,7 @@ namespace Guncon3Console.TetherScript
 
         private CheckBox _chkUseGun;
         private ComboBox _cmbCalib;
-        private RectCalib _calib;
+        private GunCalibration _calib;
         private CheckBox _chkInvertX;
         private CheckBox _chkInvertY;
         private Button _btnTestArrows;
@@ -61,7 +61,7 @@ namespace Guncon3Console.TetherScript
         private StatusStrip _status;
         private ToolStripStatusLabel _lblStatus;
 
-        public RelMouseManualForm(HIDController hid)
+        public RelativeMouseConfigForm(HidController hid)
         {
             _hid = hid;
 
@@ -228,17 +228,17 @@ namespace Guncon3Console.TetherScript
                 string label;
                 if (string.Equals(sel, "P1", StringComparison.OrdinalIgnoreCase))
                 {
-                    savePath = System.IO.Path.Combine(baseDir, RectCalib.Player1FileName);
+                    savePath = System.IO.Path.Combine(baseDir, GunCalibration.Player1FileName);
                     label = "Calibrating: Player 1 / Gun 1";
                 }
                 else if (string.Equals(sel, "P2", StringComparison.OrdinalIgnoreCase))
                 {
-                    savePath = System.IO.Path.Combine(baseDir, RectCalib.Player2FileName);
+                    savePath = System.IO.Path.Combine(baseDir, GunCalibration.Player2FileName);
                     label = "Calibrating: Player 2 / Gun 2";
                 }
                 else
                 {
-                    savePath = System.IO.Path.Combine(baseDir, RectCalib.DefaultFileName);
+                    savePath = System.IO.Path.Combine(baseDir, GunCalibration.DefaultFileName);
                     label = "Calibrating";
                 }
 
@@ -439,18 +439,18 @@ namespace Guncon3Console.TetherScript
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string path;
                 if (string.Equals(sel, "P1", StringComparison.OrdinalIgnoreCase))
-                    path = System.IO.Path.Combine(baseDir, RectCalib.Player1FileName);
+                    path = System.IO.Path.Combine(baseDir, GunCalibration.Player1FileName);
                 else if (string.Equals(sel, "P2", StringComparison.OrdinalIgnoreCase))
-                    path = System.IO.Path.Combine(baseDir, RectCalib.Player2FileName);
+                    path = System.IO.Path.Combine(baseDir, GunCalibration.Player2FileName);
                 else if (string.Equals(sel, "None", StringComparison.OrdinalIgnoreCase))
                 {
                     _calib = null;
                     return;
                 }
                 else
-                    path = System.IO.Path.Combine(baseDir, RectCalib.DefaultFileName);
+                    path = System.IO.Path.Combine(baseDir, GunCalibration.DefaultFileName);
 
-                _calib = RectCalib.Load(path);
+                _calib = GunCalibration.Load(path);
                 if (_calib == null || !_calib.IsValid())
                     _calib = null;
             }

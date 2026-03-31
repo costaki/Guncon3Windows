@@ -8,7 +8,7 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    class HIDController
+    class HidController
     {
         public event EventHandler<LogArgs> OnLog;
 

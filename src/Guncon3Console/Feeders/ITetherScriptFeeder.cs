@@ -5,7 +5,7 @@ namespace Guncon3Console.Feeders
 {
     internal interface ITetherScriptFeeder : IFeeder
     {
-        HIDController Hid { get; }
+        HidController Hid { get; }
         void OnHidLog(object sender, LogArgs e);
         ushort VendorId { get; }
         ushort ProductId { get; }

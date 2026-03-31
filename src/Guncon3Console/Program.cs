@@ -19,11 +19,11 @@ namespace Guncon3Console
     {
         private static volatile bool _running = true;
 
-        private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
-        private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
-        private static readonly vMulti.VMultiAbsMouseFeeder _vMultiAbsMouse = new vMulti.VMultiAbsMouseFeeder();
+        private static readonly TetherScript.AbsoluteMouseFeeder _absMouse = new TetherScript.AbsoluteMouseFeeder();
+        private static readonly RelativeMouseFeeder _relMouse = new RelativeMouseFeeder();
+        private static readonly vMulti.AbsoluteMouseFeeder _vMultiAbsMouse = new vMulti.AbsoluteMouseFeeder();
         private static readonly TetherScript.KeyboardFeeder _keyboard = new TetherScript.KeyboardFeeder();
-        private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
+        private static readonly WindowsInput.AbsoluteMouseFeeder _winAbsMouse = new WindowsInput.AbsoluteMouseFeeder();
         private static readonly WindowsInput.KeyboardFeeder _winKeyboard = new WindowsInput.KeyboardFeeder();
 
         private static GunconDevice _gun1;
@@ -119,14 +119,14 @@ namespace Guncon3Console
             // === "dump-hid": dump present HID devices and exit ===
             if (args.Length > 0 && args[0].Equals("dump-hid", StringComparison.OrdinalIgnoreCase))
             {
-                new HIDController().DumpTetherscriptCandidates();
+                new HidController().DumpTetherscriptCandidates();
                 return;
             }
 
             // === "relmouse-manual": open a simple manual sender form for RelMouse reports ===
             if (args.Length > 0 && args[0].Equals("relmouse-manual", StringComparison.OrdinalIgnoreCase))
             {
-                var hid = new HIDController();
+                var hid = new HidController();
                 hid.VendorID = (ushort)DriversConst.TTC_VENDORID;
                 hid.ProductID = (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
                 hid.Connect();
@@ -139,7 +139,7 @@ namespace Guncon3Console
 
                 try
                 {
-                    using (var w = new RelMouseManualForm(hid))
+                    using (var w = new RelativeMouseConfigForm(hid))
                         Application.Run(w);
                 }
                 finally
@@ -269,13 +269,13 @@ namespace Guncon3Console
             string modeString = null;
             if (!dual)
             {
-                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, RectCalib.DefaultFileName);
+                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, GunCalibration.DefaultFileName);
                 modeString = "SINGLE";
             }
             else
             {
-                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, RectCalib.Player1FileName);
-                calibPathP2 = !string.IsNullOrWhiteSpace(calib2Arg) ? calib2Arg : Path.Combine(AppPath, RectCalib.Player2FileName);
+                calibPathP1 = !string.IsNullOrWhiteSpace(calib1Arg) ? calib1Arg : Path.Combine(AppPath, GunCalibration.Player1FileName);
+                calibPathP2 = !string.IsNullOrWhiteSpace(calib2Arg) ? calib2Arg : Path.Combine(AppPath, GunCalibration.Player2FileName);
                 mapPathP2 = !string.IsNullOrWhiteSpace(map2Arg) ? map2Arg : Path.Combine(AppPath, Guncon3Console.Mapping.GunMappingStore.Player2FileName);
                 modeString = "DUAL";
             }

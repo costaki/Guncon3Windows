@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 
 namespace Guncon3Console.vMulti
 {
-    internal sealed class VMultiHidController
+    internal sealed class HidController
     {
         public const ushort VMULTI_USAGE_PAGE = 0xFF00;
         public const ushort VMULTI_CONTROL_USAGE = 0x0001;

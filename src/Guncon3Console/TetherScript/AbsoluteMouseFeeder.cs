@@ -11,10 +11,10 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class AbsMouseFeeder : IMouseFeeder, ITetherScriptFeeder
+    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, ITetherScriptFeeder
     {
-        private readonly HIDController _hid = new HIDController();
-        public HIDController Hid => _hid;
+        private readonly HidController _hid = new HidController();
+        public HidController Hid => _hid;
 
         // Map: logical gun button (public enum in GunconUSB) -> TetherScript virtual mouse button
         private readonly Dictionary<GunButton, MouseButton> _mapping = new Dictionary<GunButton, MouseButton>();
@@ -22,7 +22,7 @@ namespace Guncon3Console.TetherScript
         public bool Force4by3 { get; set; } = false;
         private byte _btns;
 
-        public AbsMouseFeeder() { }
+        public AbsoluteMouseFeeder() { }
 
         public string Name => "TetherScript AbsMouse";
 

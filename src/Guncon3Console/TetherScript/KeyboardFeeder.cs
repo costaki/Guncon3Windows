@@ -10,8 +10,8 @@ namespace Guncon3Console.TetherScript
 {
     internal sealed class KeyboardFeeder : ITetherScriptFeeder, IKeyboardFeeder
     {
-        private readonly HIDController _hid = new HIDController();
-        public HIDController Hid => _hid;
+        private readonly HidController _hid = new HidController();
+        public HidController Hid => _hid;
 
         private readonly uint _fTimeout = 5000;
 

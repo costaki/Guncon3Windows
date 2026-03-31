@@ -11,7 +11,7 @@ namespace Guncon3Console.Calibration
     /// into screen space (0..ScreenW-1, 0..ScreenH-1).
     /// </summary>
     [DataContract]
-    public class RectCalib
+    public class GunCalibration
     {
         public const string DefaultFileName = "calibration_rect.json";
         public const string Player1FileName = "calibration_rect_p1.json";
@@ -35,11 +35,11 @@ namespace Guncon3Console.Calibration
         [DataMember(Order = 7)]
         public bool InvertY { get; set; }
 
-        public RectCalib()
+        public GunCalibration()
         {
         }
 
-        public RectCalib(string calibrationPath)
+        public GunCalibration(string calibrationPath)
         {
             if (!string.IsNullOrWhiteSpace(calibrationPath))
                 CalibrationPath = calibrationPath;
@@ -96,26 +96,26 @@ namespace Guncon3Console.Calibration
 
         public void Save()
         {
-            var ser = new DataContractJsonSerializer(typeof(RectCalib));
+            var ser = new DataContractJsonSerializer(typeof(GunCalibration));
             using (var fs = File.Create(CalibrationPath))
                 ser.WriteObject(fs, this);
         }
 
         /// <summary>Loads from the given path. Returns null if missing or invalid.</summary>
-        public static RectCalib Load(string calibrationPath)
+        public static GunCalibration Load(string calibrationPath)
         {
             if (string.IsNullOrWhiteSpace(calibrationPath))
                 throw new ArgumentException("Calibration path is required.", nameof(calibrationPath));
 
             if (!File.Exists(calibrationPath))
-                return new RectCalib(calibrationPath);
+                return new GunCalibration(calibrationPath);
 
             try
             {
-                var ser = new DataContractJsonSerializer(typeof(RectCalib));
+                var ser = new DataContractJsonSerializer(typeof(GunCalibration));
                 using (var fs = File.OpenRead(calibrationPath))
                 {
-                    var rc = (RectCalib)ser.ReadObject(fs);
+                    var rc = (GunCalibration)ser.ReadObject(fs);
                     if (rc == null || !rc.IsValid())
                         return null;
                     rc.CalibrationPath = calibrationPath;
@@ -132,10 +132,10 @@ namespace Guncon3Console.Calibration
         {
             try
             {
-                var ser = new DataContractJsonSerializer(typeof(RectCalib));
+                var ser = new DataContractJsonSerializer(typeof(GunCalibration));
                 using (var fs = File.OpenRead(CalibrationPath))
                 {
-                    var rc = (RectCalib)ser.ReadObject(fs);
+                    var rc = (GunCalibration)ser.ReadObject(fs);
                     if (rc == null || !rc.IsValid())
                         throw new Exception("Failed to refresh calibration: invalid data.");
                     this.RawMinX = rc.RawMinX;

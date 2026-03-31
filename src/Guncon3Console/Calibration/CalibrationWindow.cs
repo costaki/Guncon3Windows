@@ -24,7 +24,7 @@ namespace Guncon3Console.Calibration
         private bool _prevTrig = false;
         private bool _prevA1 = false, _prevC2 = false;
         private bool _checking = false;
-        private RectCalib _rectForCheck = null;
+        private GunCalibration _rectForCheck = null;
 
         public CalibrationWindow() : this(null, null, null)
         {
@@ -210,7 +210,7 @@ namespace Guncon3Console.Calibration
                 int W = Screen.PrimaryScreen.Bounds.Width;
                 int H = Screen.PrimaryScreen.Bounds.Height;
 
-                var rc = new RectCalib(_savePath)
+                var rc = new GunCalibration(_savePath)
                 {
                     RawMinX = (int)Math.Round(minX),
                     RawMaxX = (int)Math.Round(maxX),
