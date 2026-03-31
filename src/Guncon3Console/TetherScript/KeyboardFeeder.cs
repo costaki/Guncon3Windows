@@ -8,7 +8,7 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class KeyboardFeeder : ITetherScriptFeeder, IKeyboardFeeder
+    internal sealed class KeyboardFeeder : ITetherScriptFeeder, IKeyboardFeeder, IDisposable
     {
         private readonly HidController _hid = new HidController();
         public HidController Hid => _hid;
@@ -82,8 +82,13 @@ namespace Guncon3Console.TetherScript
             }
             catch { }
             _hid.Disconnect();
-            _hid.Dispose();
             _hid.OnLog -= OnHidLog;
+        }
+
+        public void Dispose()
+        {
+            Disconnect();
+            _hid.Dispose();
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);

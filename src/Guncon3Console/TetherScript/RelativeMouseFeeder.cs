@@ -9,7 +9,7 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelativeMouseFeeder : IMouseFeeder, ITetherScriptFeeder
+    internal sealed class RelativeMouseFeeder : IMouseFeeder, ITetherScriptFeeder, IDisposable
     {
         private readonly HidController _hid = new HidController();
         public HidController Hid => _hid;
@@ -89,8 +89,13 @@ namespace Guncon3Console.TetherScript
         public void Disconnect()
         {
             _hid.Disconnect();
-            _hid.Dispose();
             _hid.OnLog -= OnHidLog;
+        }
+
+        public void Dispose()
+        {
+            Disconnect();
+            _hid.Dispose();
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);

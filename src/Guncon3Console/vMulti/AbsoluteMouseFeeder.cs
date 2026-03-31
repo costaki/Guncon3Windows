@@ -17,7 +17,7 @@ namespace Guncon3Console.vMulti
     /// - write a 0x41-byte control report:
     ///     [VMultiControlReportHeader][VMultiMouseReport][padding...]
     /// </summary>
-    internal sealed class AbsoluteMouseFeeder : IMouseFeeder
+    internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IDisposable
     {
         private readonly HidController HID = new HidController();
 
@@ -63,8 +63,13 @@ namespace Guncon3Console.vMulti
         public void Disconnect()
         {
             HID.Disconnect();
-            HID.Dispose();
             HID.OnLog -= OnHidLog;
+        }
+
+        public void Dispose()
+        {
+            Disconnect();
+            HID.Dispose();
         }
 
         public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
