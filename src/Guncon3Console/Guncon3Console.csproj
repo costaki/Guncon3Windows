@@ -113,6 +113,8 @@
     <Compile Include="Calibration\CalibrationEditorForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Common\Hid\HidDeviceEnumerator.cs" />
+    <Compile Include="Common\Hid\IHidConnection.cs" />
     <Compile Include="Common\LogArgs.cs" />
     <Compile Include="Common\MouseButton.cs" />
     <Compile Include="Feeders\IFeeder.cs" />

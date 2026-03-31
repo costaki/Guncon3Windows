@@ -1,4 +1,5 @@
 using Guncon3Console.Common;
+using Guncon3Console.Common.Hid;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
@@ -6,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace Guncon3Console.vMulti
 {
-    internal sealed class HidController
+    internal sealed class HidController : HidDeviceEnumerator, IHidConnection
     {
         public const ushort VMULTI_USAGE_PAGE = 0xFF00;
         public const ushort VMULTI_CONTROL_USAGE = 0x0001;
@@ -22,21 +23,26 @@ namespace Guncon3Console.vMulti
         public event EventHandler<LogArgs> OnLog;
 
         private SafeFileHandle _deviceHandle;
-        private bool _connected;
         private int _outputReportByteLength;
         private readonly byte[] _controlReportBuffer = new byte[CONTROL_REPORT_SIZE];
 
-        public bool Connected => _connected;
+        public bool Connected => _deviceHandle != null && !_deviceHandle.IsInvalid;
 
         private void DoLog(string msg)
         {
-            try { OnLog?.Invoke(this, new LogArgs { Msg = msg }); }
-            catch { }
+            RaiseLog(OnLog, this, msg);
+        }
+
+        public HidController()
+        {
+            Log = DoLog;
         }
 
         public void Connect()
         {
-            if (_connected)
+            DoLog("Connecting...");
+
+            if (Connected)
             {
                 DoLog("Already connected.");
                 return;
@@ -45,57 +51,23 @@ namespace Guncon3Console.vMulti
             _deviceHandle = null;
             _outputReportByteLength = 0;
 
-            HidD_GetHidGuid(out Guid hidGuid);
-
-            IntPtr info = SetupDiGetClassDevs(
-                ref hidGuid,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                (uint)(DiGetClassFlags.DIGCF_PRESENT | DiGetClassFlags.DIGCF_DEVICEINTERFACE));
-
-            if (info == INVALID_HANDLE_VALUE)
+            EnumeratePresentHidInterfaces((info, ifData) =>
             {
-                DoLog("SetupDiGetClassDevs failed.");
-                return;
-            }
+                if (!TryOpenMatchingInterface(info, ref ifData, out var handle, out var outputReportByteLength))
+                    return true;
 
-            try
-            {
-                uint index = 0;
-                while (true)
-                {
-                    var ifData = new SP_DEVICE_INTERFACE_DATA
-                    {
-                        cbSize = (uint)Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>()
-                    };
+                _deviceHandle = handle;
+                _outputReportByteLength = outputReportByteLength;
+                DoLog("Connected.");
+                return false;
+            });
 
-                    if (!SetupDiEnumDeviceInterfaces(info, IntPtr.Zero, ref hidGuid, index, ref ifData))
-                        break;
-
-                    index++;
-
-                    if (!TryOpenMatchingInterface(info, ref ifData, out var handle, out var outputReportByteLength))
-                        continue;
-
-                    _deviceHandle = handle;
-                    _outputReportByteLength = outputReportByteLength;
-                    _connected = true;
-                    return;
-                }
-            }
-            finally
-            {
-                SetupDiDestroyDeviceInfoList(info);
-            }
-
-            if (!_connected)
-                DoLog("vmulti control device not found.");
+            if (!Connected)
+                DoLog("vMulti control device not found.");
         }
 
         public void Disconnect()
         {
-            _connected = false;
-
             try
             {
                 _deviceHandle?.Close();
@@ -106,9 +78,14 @@ namespace Guncon3Console.vMulti
             _outputReportByteLength = 0;
         }
 
+        public void Dispose()
+        {
+            Disconnect();
+        }
+
         public bool SendAbsoluteMouse(byte buttons, ushort x, ushort y, sbyte wheel)
         {
-            if (!_connected || _deviceHandle == null || _deviceHandle.IsInvalid)
+            if (!Connected)
                 return false;
 
             _controlReportBuffer[0] = REPORTID_CONTROL;
@@ -125,6 +102,9 @@ namespace Guncon3Console.vMulti
 
         private bool Write(byte[] buffer)
         {
+            if (buffer == null || buffer.Length == 0)
+                return false;
+
             if (_outputReportByteLength > 0 && _outputReportByteLength < buffer.Length)
             {
                 DoLog($"Output report length too small for vMulti write: caps={_outputReportByteLength}, need={buffer.Length}");
@@ -168,28 +148,7 @@ namespace Guncon3Console.vMulti
             if (!TryGetDeviceInterfacePath(info, ref ifData, out string path))
                 return false;
 
-            var h = CreateFile(
-                path,
-                FileAccess.ReadWrite,
-                FileShare.ReadWrite,
-                IntPtr.Zero,
-                FileMode.Open,
-                0,
-                IntPtr.Zero);
-
-            if (h == null || h.IsInvalid)
-            {
-                h = CreateFile(
-                    path,
-                    0,
-                    FileShare.ReadWrite,
-                    IntPtr.Zero,
-                    FileMode.Open,
-                    0,
-                    IntPtr.Zero);
-            }
-
-            if (h == null || h.IsInvalid)
+            if (!TryOpenHidHandle(path, out var h))
                 return false;
 
             if (!IsMatchingVMultiControlDevice(h, out outputReportByteLength))
@@ -204,34 +163,11 @@ namespace Guncon3Console.vMulti
 
         private bool TryGetDeviceInterfacePath(IntPtr info, ref SP_DEVICE_INTERFACE_DATA ifData, out string path)
         {
-            path = null;
+            if (base.TryGetDeviceInterfacePath(info, ref ifData, out path))
+                return true;
 
-            SetupDiGetDeviceInterfaceDetail(info, ref ifData, IntPtr.Zero, 0, out uint needed, IntPtr.Zero);
-            if (needed == 0)
-            {
-                DoLog("SetupDiGetDeviceInterfaceDetail size query failed: " + Marshal.GetLastWin32Error());
-                return false;
-            }
-
-            IntPtr detail = Marshal.AllocHGlobal((int)needed);
-            try
-            {
-                Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);
-
-                if (!SetupDiGetDeviceInterfaceDetail(info, ref ifData, detail, needed, out needed, IntPtr.Zero))
-                {
-                    DoLog("SetupDiGetDeviceInterfaceDetail failed: " + Marshal.GetLastWin32Error());
-                    return false;
-                }
-
-                int pathOffset = 4;
-                path = Marshal.PtrToStringAuto(IntPtr.Add(detail, pathOffset));
-                return !string.IsNullOrWhiteSpace(path);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(detail);
-            }
+            LogLastError("SetupDiGetDeviceInterfaceDetail failed: ");
+            return false;
         }
 
         private bool IsMatchingVMultiControlDevice(SafeFileHandle h, out int outputReportByteLength)
@@ -267,24 +203,8 @@ namespace Guncon3Console.vMulti
             }
         }
 
-        private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
         private const int HIDP_STATUS_SUCCESS = 0x00110000;
 
-        [Flags]
-        private enum DiGetClassFlags : uint
-        {
-            DIGCF_PRESENT = 0x00000002,
-            DIGCF_DEVICEINTERFACE = 0x00000010,
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct SP_DEVICE_INTERFACE_DATA
-        {
-            public uint cbSize;
-            public Guid interfaceClassGuid;
-            public uint flags;
-            public IntPtr reserved;
-        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct HIDP_CAPS
@@ -310,9 +230,6 @@ namespace Guncon3Console.vMulti
             public short NumberFeatureDataIndices;
         }
 
-        [DllImport("hid.dll")]
-        private static extern void HidD_GetHidGuid(out Guid hidGuid);
-
         [DllImport("hid.dll", SetLastError = true)]
         private static extern bool HidD_GetPreparsedData(SafeFileHandle device, out IntPtr preparsedData);
 
@@ -324,43 +241,6 @@ namespace Guncon3Console.vMulti
 
         [DllImport("hid.dll", SetLastError = true)]
         private static extern bool HidD_SetOutputReport(SafeFileHandle hFile, byte[] lpReportBuffer, uint reportBufferLength);
-
-        [DllImport("setupapi.dll", SetLastError = true)]
-        private static extern IntPtr SetupDiGetClassDevs(
-            ref Guid classGuid,
-            IntPtr enumerator,
-            IntPtr hwndParent,
-            uint flags);
-
-        [DllImport("setupapi.dll", SetLastError = true)]
-        private static extern bool SetupDiEnumDeviceInterfaces(
-            IntPtr deviceInfoSet,
-            IntPtr deviceInfoData,
-            ref Guid interfaceClassGuid,
-            uint memberIndex,
-            ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData);
-
-        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern bool SetupDiGetDeviceInterfaceDetail(
-            IntPtr deviceInfoSet,
-            ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData,
-            IntPtr deviceInterfaceDetailData,
-            uint deviceInterfaceDetailDataSize,
-            out uint requiredSize,
-            IntPtr deviceInfoData);
-
-        [DllImport("setupapi.dll", SetLastError = true)]
-        private static extern bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern SafeFileHandle CreateFile(
-            string fileName,
-            FileAccess fileAccess,
-            FileShare fileShare,
-            IntPtr securityAttributes,
-            FileMode creationDisposition,
-            uint flagsAndAttributes,
-            IntPtr templateFile);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool WriteFile(

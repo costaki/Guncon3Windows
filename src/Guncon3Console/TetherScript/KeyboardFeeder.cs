@@ -82,6 +82,7 @@ namespace Guncon3Console.TetherScript
             }
             catch { }
             _hid.Disconnect();
+            _hid.Dispose();
             _hid.OnLog -= OnHidLog;
         }
 

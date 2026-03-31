@@ -63,6 +63,7 @@ namespace Guncon3Console.vMulti
         public void Disconnect()
         {
             HID.Disconnect();
+            HID.Dispose();
             HID.OnLog -= OnHidLog;
         }
 

@@ -5,57 +5,25 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using GunconUSB;
 using Guncon3Console.Common;
+using Guncon3Console.Common.Hid;
 
 namespace Guncon3Console.TetherScript
 {
-    class HidController
+    class HidController : HidDeviceEnumerator, IHidConnection
     {
         public event EventHandler<LogArgs> OnLog;
 
-        public Guid HIDGuid;
-        protected bool FConnected = false;
+        private Guid HIDGuid;
         protected ushort FProductID;
         protected ushort FVendorID;
         protected SafeFileHandle FDevHandle;
         protected string FDevicePathName;
 
-        public bool Connected { get => FConnected; set => FConnected = value; }
+        public bool Connected => FDevHandle != null && !FDevHandle.IsInvalid;
         public ushort ProductID { get => FProductID; set => FProductID = value; }
         public ushort VendorID { get => FVendorID; set => FVendorID = value; }
 
-        public enum DiGetClassFlags : uint
-        {
-            DIGCF_PRESENT = 0x00000002,
-            DIGCF_DEVICEINTERFACE = 0x00000010,
-        }
-
-        private readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SP_DEVICE_INTERFACE_DATA
-        {
-            public uint cbSize;
-            public Guid interfaceClassGuid;
-            public int flags;
-            private IntPtr reserved;
-        }
-
-        // Not used with direct marshalling; we build a manual buffer using IntPtr.
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 1)]
-        public struct SP_DEVICE_INTERFACE_DETAIL_DATA
-        {
-            public uint cbSize;
-            public char devicePath;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SP_DEVINFO_DATA
-        {
-            public uint cbSize;
-            public Guid ClassGuid;
-            public uint DevInst;
-            public IntPtr Reserved;
-        }
+        // NOTE: common HID enumeration types/PInvoke live in HidDeviceEnumerator.
 
         public struct HIDD_ATTRIBUTES
         {
@@ -68,49 +36,10 @@ namespace Guncon3Console.TetherScript
         // ===== Fixed P/Invoke =====
 
         [DllImport("hid.dll", CharSet = CharSet.Auto)]
-        static extern void HidD_GetHidGuid(out Guid ClassGuid);
-
-        [DllImport("hid.dll", CharSet = CharSet.Auto)]
         static extern bool HidD_GetAttributes(SafeFileHandle HidDeviceObject, ref HIDD_ATTRIBUTES Attributes);
 
         [DllImport("hid.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern bool HidD_SetFeature(SafeFileHandle HidDeviceObject, byte[] Buffer, uint BufferLength);
-
-        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern IntPtr SetupDiGetClassDevs(
-            ref Guid ClassGuid,
-            IntPtr Enumerator,
-            IntPtr hwndParent,
-            int Flags);
-
-        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool SetupDiEnumDeviceInterfaces(
-            IntPtr hDevInfo,
-            IntPtr devInfo,
-            ref Guid interfaceClassGuid,
-            uint memberIndex,
-            ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData);
-
-        // 1st pass: query required size (deviceInfoData unused -> IntPtr.Zero)
-        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool SetupDiGetDeviceInterfaceDetail(
-            IntPtr hDevInfo,
-            ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData,
-            IntPtr deviceInterfaceDetailData,
-            uint deviceInterfaceDetailDataSize,
-            out uint requiredSize,
-            IntPtr deviceInfoData);
-
-        // CreateFile with correct FileAccess/FileShare
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        static extern SafeFileHandle CreateFile(
-            string fileName,
-            FileAccess fileAccess,
-            FileShare fileShare,
-            IntPtr securityAttributes,
-            FileMode creationDisposition,
-            uint flagsAndAttributes,
-            IntPtr template);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         static extern bool ReadFileEx(
@@ -121,61 +50,40 @@ namespace Guncon3Console.TetherScript
             IntPtr lpCompletionRoutine);
 
         // ===== util =====
-        private void DoLog(string msg) { try { OnLog?.Invoke(this, new LogArgs { Msg = msg }); } catch { } }
+        private void DoLog(string msg) { RaiseLog(OnLog, this, msg); }
+
+        public HidController()
+        {
+            Log = DoLog;
+        }
 
         public void DumpTetherscriptCandidates()
         {
             try
             {
                 HidD_GetHidGuid(out HIDGuid);
-                IntPtr info = SetupDiGetClassDevs(ref HIDGuid, IntPtr.Zero, IntPtr.Zero,
-                    (int)(DiGetClassFlags.DIGCF_PRESENT | DiGetClassFlags.DIGCF_DEVICEINTERFACE));
-                if (info == INVALID_HANDLE_VALUE) { Console.WriteLine("[HID] SetupDiGetClassDevs FAIL"); return; }
 
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("[HID] Enumerating present HID devices:");
                 Console.ResetColor();
 
-                uint i = 0;
-                while (true)
+                EnumeratePresentHidInterfaces((info, ifData) =>
                 {
-                    var ifData = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVICE_INTERFACE_DATA)) };
-                    if (!SetupDiEnumDeviceInterfaces(info, IntPtr.Zero, ref HIDGuid, i, ref ifData)) break;
-
-                    uint needed;
-                    SetupDiGetDeviceInterfaceDetail(info, ref ifData, IntPtr.Zero, 0, out needed, IntPtr.Zero);
-
-                    IntPtr detail = Marshal.AllocHGlobal((int)needed);
-                    try
+                    if (TryGetDeviceInterfacePath(info, ref ifData, out string path) &&
+                        TryOpenHidHandle(path, out var h))
                     {
-                        // cbSize: 8 on x64, 6 on x86
-                        Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);
-
-                        if (SetupDiGetDeviceInterfaceDetail(info, ref ifData, detail, needed, out needed, IntPtr.Zero))
+                        ushort vid = 0, pid = 0;
+                        try
                         {
-                            IntPtr pPath = new IntPtr(detail.ToInt64() + 4);
-                            string path = Marshal.PtrToStringAuto(pPath);
-
-                            ushort vid = 0, pid = 0;
-                            var h = CreateFile(path, FileAccess.ReadWrite, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
-                            if (h.IsInvalid)
-                                h = CreateFile(path, 0, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
-
-                            if (!h.IsInvalid)
-                            {
-                                var a = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES)) };
-                                if (HidD_GetAttributes(h, ref a)) { vid = a.VendorID; pid = a.ProductID; }
-                                h.Close();
-                            }
-
-                            Console.WriteLine($" - {path}");
-                            Console.WriteLine($"   VID=0x{vid:X4} PID=0x{pid:X4}");
+                            var a = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES)) };
+                            if (HidD_GetAttributes(h, ref a)) { vid = a.VendorID; pid = a.ProductID; }
                         }
-                    }
-                    finally { Marshal.FreeHGlobal(detail); }
+                        finally { h.Close(); }
 
-                    i++;
-                }
+                        Console.WriteLine($" - {path}");
+                        Console.WriteLine($"   VID=0x{vid:X4} PID=0x{pid:X4}");
+                    }
+                });
             }
             catch (Exception ex) { Console.WriteLine("[HID] Dump error: " + ex.Message); }
         }
@@ -183,83 +91,59 @@ namespace Guncon3Console.TetherScript
         public void Connect()
         {
             DoLog("Connecting...");
-            if (FConnected) { DoLog("Already connected."); return; }
+            if (Connected) { DoLog("Already connected."); return; }
 
             HidD_GetHidGuid(out HIDGuid);
 
-            IntPtr pnp = SetupDiGetClassDevs(ref HIDGuid, IntPtr.Zero, IntPtr.Zero,
-                (int)(DiGetClassFlags.DIGCF_PRESENT | DiGetClassFlags.DIGCF_DEVICEINTERFACE));
-            if (pnp == INVALID_HANDLE_VALUE) { DoLog("Connect: SetupDiGetClassDevs failed."); return; }
-
-            bool foundAny = false, foundMine = false;
-            uint idx = 0;
-
-            do
+            EnumeratePresentHidInterfaces((info, ifData) =>
             {
-                var ifData = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVICE_INTERFACE_DATA)) };
-                foundAny = SetupDiEnumDeviceInterfaces(pnp, IntPtr.Zero, ref HIDGuid, idx, ref ifData);
-                if (foundAny)
+                if (TryGetDeviceInterfacePath(info, ref ifData, out FDevicePathName) &&
+                    TryOpenHidHandle(FDevicePathName, out var h))
                 {
-                    uint needed;
-                    // 1ª llamada: tamaño
-                    SetupDiGetDeviceInterfaceDetail(pnp, ref ifData, IntPtr.Zero, 0, out needed, IntPtr.Zero);
-
-                    IntPtr detail = Marshal.AllocHGlobal((int)needed);
-                    try
+                    var a = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES)) };
+                    if (HidD_GetAttributes(h, ref a) && a.VendorID == FVendorID && a.ProductID == FProductID)
                     {
-                        Marshal.WriteInt32(detail, IntPtr.Size == 8 ? 8 : 6);
-                        // 2ª llamada: datos
-                        if (SetupDiGetDeviceInterfaceDetail(pnp, ref ifData, detail, needed, out needed, IntPtr.Zero))
-                        {
-                            IntPtr pPath = new IntPtr(detail.ToInt64() + 4);
-                            FDevicePathName = Marshal.PtrToStringAuto(pPath);
-
-                            var h = CreateFile(FDevicePathName, FileAccess.ReadWrite, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
-                            if (h.IsInvalid)
-                                h = CreateFile(FDevicePathName, 0, FileShare.ReadWrite, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
-
-                            if (!h.IsInvalid)
-                            {
-                                var a = new HIDD_ATTRIBUTES { Size = Marshal.SizeOf(typeof(HIDD_ATTRIBUTES)) };
-                                if (HidD_GetAttributes(h, ref a) && a.VendorID == FVendorID && a.ProductID == FProductID)
-                                {
-                                     FDevHandle = h; // keep the valid handle
-                                    foundMine = true;
-                                    FConnected = true;
-                                    DoLog("Connected.");
-                                }
-                                else
-                                {
-                                    h.Close();
-                                }
-                            }
-                        }
+                        FDevHandle = h; // keep the valid handle
+                        DoLog("Connected.");
+                        return false;
                     }
-                    finally { Marshal.FreeHGlobal(detail); }
+                    else
+                    {
+                        h.Close();
+                    }
                 }
-                idx++;
-            }
-            while (foundAny && !foundMine);
+
+                return true;
+            });
         }
 
         public void Disconnect()
         {
-            FConnected = false;
             try { FDevHandle?.Close(); } catch { }
+            FDevHandle = null;
+        }
+
+        public void Dispose()
+        {
+            Disconnect();
         }
 
         public bool SendData(byte[] buffer, uint bufferLength)
         {
-            if (!FConnected) return false;
+            if (!Connected) return false;
+            if (buffer == null) return false;
             uint len = bufferLength;
             if (len == 0 && buffer != null)
                 len = (uint)buffer.Length;
+            if (len == 0 || len > (uint)buffer.Length) return false;
             return HidD_SetFeature(FDevHandle, buffer, len);
         }
 
         public bool ReadData(byte[] buffer, uint bufferLength)
         {
-            if (!FConnected || FDevHandle.IsInvalid) return false;
+            if (!Connected) return false;
+            if (buffer == null) return false;
+            if (bufferLength == 0 || bufferLength > (uint)buffer.Length) return false;
             var ov = new NativeOverlapped { EventHandle = IntPtr.Zero };
             _ = ReadFileEx(FDevHandle, buffer, bufferLength, ref ov, IntPtr.Zero);
             return true;
