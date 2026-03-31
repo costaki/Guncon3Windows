@@ -3,16 +3,10 @@ using System.Collections.Generic;
 using GunconUSB;
 using Guncon3Console.GunStates;
 using Guncon3Console.Feeders;
+using Guncon3Console.Common;
 
 namespace Guncon3Console.WindowsInput
 {
-    internal enum MouseButton
-    {
-        LeftButton,
-        MiddleButton,
-        RightButton
-    }
-
     internal sealed class AbsoluteMouseFeeder : IMouseFeeder, IFeeder
     {
         // Map: logical gun button (public enum in GunconUSB) -> mouse button
@@ -162,9 +156,9 @@ namespace Guncon3Console.WindowsInput
                 if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
                     continue;
 
-                if (map.Value == MouseButton.LeftButton) btns = (byte)(btns | 1);
-                if (map.Value == MouseButton.RightButton) btns = (byte)(btns | (1 << 1));
-                if (map.Value == MouseButton.MiddleButton) btns = (byte)(btns | (1 << 2));
+                if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
+                if (map.Value == MouseButton.Right) btns = (byte)(btns | (1 << 1));
+                if (map.Value == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
             }
 
             return btns;

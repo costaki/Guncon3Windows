@@ -91,26 +91,6 @@ namespace Guncon3Console.Mapping
 
             var a = action.Trim();
 
-            // We have 2 distinct MouseButton enums (TetherScript vs WindowsInput). Feeders already accept dynamic.
-            // Detect by runtime type name to avoid referencing both enums here.
-            var typeName = feeder.GetType().FullName ?? string.Empty;
-
-            bool isWindowsInput = typeName.IndexOf("Guncon3Console.WindowsInput", StringComparison.OrdinalIgnoreCase) >= 0;
-
-            if (isWindowsInput)
-            {
-                switch (a.ToUpperInvariant())
-                {
-                    case "LEFT":
-                        return Guncon3Console.WindowsInput.MouseButton.LeftButton;
-                    case "RIGHT":
-                        return Guncon3Console.WindowsInput.MouseButton.RightButton;
-                    case "MIDDLE":
-                        return Guncon3Console.WindowsInput.MouseButton.MiddleButton;
-                    default: return null;
-                }
-            }
-
             switch (a.ToUpperInvariant())
             {
                 case "LEFT":
