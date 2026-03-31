@@ -139,6 +139,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="TetherScript\TetherScriptMarshal.cs" />
+    <Compile Include="vMulti\AbsMouseFeeder.cs" />
     <Compile Include="WindowsInput\AbsMouseFeeder.cs" />
     <Compile Include="WindowsInput\KeyboardFeeder.cs" />
   </ItemGroup>

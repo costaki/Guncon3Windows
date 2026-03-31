@@ -21,6 +21,7 @@ namespace Guncon3Console
 
         private static readonly TetherScript.AbsMouseFeeder _absMouse = new TetherScript.AbsMouseFeeder();
         private static readonly RelMouseFeeder _relMouse = new RelMouseFeeder();
+        private static readonly vMulti.VMultiAbsMouseFeeder _vMultiAbsMouse = new vMulti.VMultiAbsMouseFeeder();
         private static readonly TetherScript.KeyboardFeeder _keyboard = new TetherScript.KeyboardFeeder();
         private static readonly WindowsInput.AbsMouseFeeder _winAbsMouse = new WindowsInput.AbsMouseFeeder();
         private static readonly WindowsInput.KeyboardFeeder _winKeyboard = new WindowsInput.KeyboardFeeder();
@@ -93,6 +94,7 @@ namespace Guncon3Console
             bool testMode = args.Any(a => a.Equals("test", StringComparison.OrdinalIgnoreCase));
             bool force4by3 = args.Any(a => a.Equals("4by3", StringComparison.OrdinalIgnoreCase) || a.Equals("4:3", StringComparison.OrdinalIgnoreCase));
             bool useRelMouse = (args.Any(a => a.Equals("relmouse", StringComparison.OrdinalIgnoreCase)));
+            bool useVMultiAbs = (!useRelMouse && args.Any(a => a.Equals("vmultiabs", StringComparison.OrdinalIgnoreCase) || a.Equals("vmulti", StringComparison.OrdinalIgnoreCase)));
             bool useWindowsInputAbs = (!useRelMouse && args.Any(a => a.Equals("wininputabs", StringComparison.OrdinalIgnoreCase)));
 
             string calib1Arg = GetArgValue(args, "calib1");
@@ -196,6 +198,7 @@ namespace Guncon3Console
             _absMouse.Force4by3 = force4by3;
             _relMouse.Force4by3 = force4by3;
             _winAbsMouse.Force4by3 = force4by3;
+            _vMultiAbsMouse.Force4by3 = force4by3;
 
             Console.WriteLine("[Options] 4by3 mode: " + (force4by3 ? "ENABLED" : "DISABLED"));
 
@@ -210,6 +213,12 @@ namespace Guncon3Console
                     p1MouseFeeder = _relMouse;
                     p1KeyboardFeeder = _keyboard;
                     Console.WriteLine("[Mode] SINGLE mode with TetherScript Relative Mouse & Keyboard output.");
+                }
+                else if (useVMultiAbs)
+                {
+                    p1MouseFeeder = _vMultiAbsMouse;
+                    p1KeyboardFeeder = _keyboard;
+                    Console.WriteLine("[Mode] SINGLE mode with vMulti Absolute Mouse & Keyboard output.");
                 }
                 else if (useWindowsInputAbs)
                 {
@@ -234,6 +243,12 @@ namespace Guncon3Console
                     p2MouseFeeder = _relMouse;
                     p2KeyboardFeeder = _winKeyboard;
                     Console.WriteLine("[Mode] DUAL mode with Player 2 / Gun 2 - TetherScript Relative Mouse & WindowsInput Keyboard output.");
+                }
+                else if (useVMultiAbs)
+                {
+                    p2MouseFeeder = _vMultiAbsMouse;
+                    p2KeyboardFeeder = _winKeyboard;
+                    Console.WriteLine("[Mode] DUAL mode with Player 2 / Gun 2 - vMulti Absolute Mouse & WindowsInput Keyboard output.");
                 }
                 else
                 {
@@ -403,6 +418,7 @@ namespace Guncon3Console
             try { _keyboard.Disconnect(); } catch { }
             try { _winAbsMouse.Disconnect(); } catch { }
             try { _winKeyboard.Disconnect(); } catch { }
+            try { _vMultiAbsMouse.Disconnect(); } catch { }
             try { _gun1?.Dispose(); } catch { }
             try { _gun2?.Dispose(); } catch { }
         }
@@ -486,6 +502,10 @@ namespace Guncon3Console
                 _winKeyboard.Connect();
                 Console.WriteLine("[Feeder Connection] WindowsInput Keyboard connected.");
 
+                Console.WriteLine("[Feeder Connection] vMulti Absolute Mouse connecting...");
+                _vMultiAbsMouse.Connect();
+                Console.WriteLine("[Feeder Connection] vMulti Absolute Mouse connected.");
+
                 if (!_absMouse.IsConnected || !_relMouse.IsConnected || !_keyboard.IsConnected || (dual && (!_winAbsMouse.IsConnected || !_winKeyboard.IsConnected)))
                 {
                     FailAndExit("[Feeder Connection] Could not connect to all feeders. Check that TetherScript and WindowsInput feeder services are running, and that the devices are properly configured in TetherScript.");
@@ -555,6 +575,9 @@ namespace Guncon3Console
             Console.WriteLine("  relmouse     Output routing flag:");
             Console.WriteLine("               - SINGLE: affects P1 (TetherScript Relative Mouse)");
             Console.WriteLine("               - DUAL:   affects P2 (TetherScript Relative Mouse)");
+            Console.WriteLine("  vmultiabs    Output routing flag:");
+            Console.WriteLine("               - SINGLE: affects P1 (vMulti Absolute Mouse)");
+            Console.WriteLine("               - DUAL:   affects P2 (vMulti Absolute Mouse)");
             Console.WriteLine("  wininputabs  Output routing flag:");
             Console.WriteLine("               - SINGLE: affects P1 (WindowsInput Absolute Mouse)");
             Console.WriteLine("               - DUAL:   ignored (P2 already uses WindowsInput AbsMouse when not using relmouse)");
