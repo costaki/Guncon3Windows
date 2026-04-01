@@ -1,8 +1,9 @@
-﻿using Guncon3Console.Feeders;
+﻿using Guncon3Console.Common;
+using Guncon3Console.Feeders;
 using Guncon3Console.GunStates;
-using Guncon3Console.Common;
 using GunconUSB;
 using System;
+using static Guncon3Console.Feeders.BaseTetherScriptMouseFeeder;
 
 namespace Guncon3Console.vMulti
 {
@@ -16,43 +17,10 @@ namespace Guncon3Console.vMulti
     /// - write a 0x41-byte control report:
     ///     [VMultiControlReportHeader][VMultiMouseReport][padding...]
     /// </summary>
-    internal sealed class AbsoluteMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder
+    internal sealed class AbsoluteMouseFeeder : BaseVMultiMouseFeeder, IMouseFeeder, IHidFeeder
     {
-        private readonly HidController _hid = new HidController();
-
-        public bool Force4by3 { get; set; } = false;
-
-        private byte _buttons;
-
         public override string Name => "vMulti AbsMouse";
-
-        public override bool IsConnected => _hid.Connected;
-
-        public override void Connect()
-        {
-            _hid.OnLog += OnHidLog;
-            _hid.Connect();
-
-            if (!_hid.Connected)
-                throw new Exception("Could not connect to vmulti absolute mouse control device.");
-        }
-
-        public override void Disconnect()
-        {
-            _hid.Disconnect();
-            _hid.OnLog -= OnHidLog;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Disconnect();
-                _hid.Dispose();
-            }
-        }
-
-        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
+        public override ushort ProductId => (ushort)0xBA1C;
 
         public override void Feed(IGunState state)
         {
@@ -63,55 +31,15 @@ namespace Guncon3Console.vMulti
             {
                 absX = state.ABS_X;
                 absY = state.ABS_Y;
-
-                // Same behaviour as your existing feeder for 4:3 inside 16:9.
-                if (Force4by3)
-                {
-                    if (!Helper.IsInsideCentered4By3(absX))
-                    {
-                        // Treat outside the 4:3 region as out-of-bounds.
-                        absX = (short)Helper.GunAxisMax;
-                        absY = (short)Helper.GunAxisMax;
-                    }
-                    else
-                    {
-                        absX = (short)Helper.ConvertRange4By3(absX);
-                    }
-                }
+                Feeders.MouseFeederHelper.Normalize43(ref absX, ref absY, Force4by3);
             }
 
-            // Clamp to vmulti's declared mouse range: 0x0000..0x7FFF
-            ushort x = ClampToUShort15(absX);
-            ushort y = ClampToUShort15(absY);
+            ushort x = Feeders.MouseFeederHelper.ClampToUShort15(absX);
+            ushort y = Feeders.MouseFeederHelper.ClampToUShort15(absY);
 
-            _buttons = 0;
-            foreach (var map in _mapping)
-            {
-                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
-                    continue;
-
-                switch (map.Value)
-                {
-                    case MouseButton.Left:
-                        _buttons |= HidController.MOUSE_BUTTON_1;
-                        break;
-                    case MouseButton.Right:
-                        _buttons |= HidController.MOUSE_BUTTON_2;
-                        break;
-                    case MouseButton.Middle:
-                        _buttons |= HidController.MOUSE_BUTTON_3;
-                        break;
-                }
-            }
+            ComputeButtonsMask(state);
 
             _hid.SendAbsoluteMouse(_buttons, x, y, 0);
-        }
-
-        private static ushort ClampToUShort15(short value)
-        {
-            if (value < 0) return 0;
-            if (value > 0x7FFF) return 0x7FFF;
-            return (ushort)value;
         }
     }
 }

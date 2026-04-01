@@ -26,31 +26,13 @@ namespace Guncon3Console.WindowsInput
             {
                 var x = state.ABS_X;
                 var y = state.ABS_Y;
-
-                // 4:3 inside 16:9 (MAME)
-                if (Force4by3)
-                {
-                    if (!Helper.IsInsideCentered4By3(x))
-                    {
-                        // Out-of-bounds when outside the 4:3 region.
-                        x = (short)Helper.GunAxisMax;
-                        y = (short)Helper.GunAxisMax;
-                    }
-                    else
-                    {
-                        x = (short)Helper.ConvertRange4By3(x);
-                    }
-                }
-
-                // mouse_event w/ ABSOLUTE expects normalized 0..65535 when used with MOUSEEVENTF_ABSOLUTE.
+                Feeders.MouseFeederHelper.Normalize43(ref x, ref y, Force4by3);
                 absX = ConvertAbsToUShort(x, state.ScreenW);
                 absY = ConvertAbsToUShort(y, state.ScreenH);
-
                 flags |= (NativeMethods.MOUSEEVENTF_MOVE | NativeMethods.MOUSEEVENTF_ABSOLUTE | NativeMethods.MOUSEEVENTF_VIRTUALDESK);
             }
 
-            var buttons = ComputeButtonsMask(state);
-
+            var buttons = Feeders.MouseFeederHelper.ComputeButtonsMask(_mapping, state);
             flags |= ComputeButtonTransitionFlags(buttons);
 
             // One mouse_event per Feed call.
@@ -112,22 +94,6 @@ namespace Guncon3Console.WindowsInput
 
             // Fallback: keep old behavior.
             return (ushort)Math.Min(65535, abs * 2);
-        }
-
-        private byte ComputeButtonsMask(IGunState state)
-        {
-            byte btns = 0;
-            foreach (var map in _mapping)
-            {
-                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
-                    continue;
-
-                if (map.Value == MouseButton.Left) btns = (byte)(btns | 1);
-                if (map.Value == MouseButton.Right) btns = (byte)(btns | (1 << 1));
-                if (map.Value == MouseButton.Middle) btns = (byte)(btns | (1 << 2));
-            }
-
-            return btns;
         }
 
     }

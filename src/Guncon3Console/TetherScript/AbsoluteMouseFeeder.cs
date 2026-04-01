@@ -8,49 +8,11 @@ using System.Threading;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class AbsoluteMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder, ITetherScriptFeeder
+    // Refactored to use BaseHidFeeder
+    internal sealed class AbsoluteMouseFeeder : BaseTetherScriptMouseFeeder, IMouseFeeder, IHidFeeder
     {
-        private readonly HidController _hid = new HidController();
-        public HidController Hid => _hid;
-        public bool Force4by3 { get; set; } = false;
-        private byte _btns;
-
-        public AbsoluteMouseFeeder() { }
-
         public override string Name => "TetherScript AbsMouse";
-
-        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
-        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;
-
-        public override bool IsConnected => _hid.Connected;
-
-        public override void Connect()
-        {
-            _hid.OnLog += OnHidLog;
-            _hid.VendorID = VendorId;
-            _hid.ProductID = ProductId;
-            _hid.Connect();
-
-            if (!_hid.Connected)
-                throw new Exception("Coud not connect to TetherScript's AbsMouse");
-        }
-
-        public override void Disconnect()
-        {
-            _hid.Disconnect();
-            _hid.OnLog -= OnHidLog;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Disconnect();
-                _hid.Dispose();
-            }
-        }
-
-        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
+        public override ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEABS;
 
         public void Send_Data_To_MouseAbs(ushort x, ushort y)
         {
@@ -58,13 +20,13 @@ namespace Guncon3Console.TetherScript
             {
                 ReportID = 1,
                 CommandCode = 2,
-                Buttons = _btns,
+                Buttons = _buttons,
                 X = x,
                 Y = y
             };
 
             byte[] buf = TetherScriptMarshal.StructToBytes(data);
-            _hid.SendData(buf, (uint)buf.Length);
+            SendHidReport(buf);
         }
 
         public override void Feed(IGunState state)
@@ -93,18 +55,7 @@ namespace Guncon3Console.TetherScript
                 }
             }
 
-            // buttons
-            _btns = 0;
-            foreach (var map in _mapping)
-            {
-                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
-                    continue;
-
-                if (map.Value == MouseButton.Left) _btns = (byte)(_btns | 1);
-                if (map.Value == MouseButton.Right) _btns = (byte)(_btns | (1 << 1));
-                if (map.Value == MouseButton.Middle) _btns = (byte)(_btns | (1 << 2));
-            }
-
+            ComputeButtonsMask(state);
             Send_Data_To_MouseAbs((ushort)absX, (ushort)absY);
         }
     }

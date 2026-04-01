@@ -1,11 +1,12 @@
-using Guncon3Console.TetherScript;
 using Guncon3Console.Common;
+using Guncon3Console.Common.Hid;
+using Guncon3Console.TetherScript;
 
 namespace Guncon3Console.Feeders
 {
-    internal interface ITetherScriptFeeder : IFeeder
+    internal interface IHidFeeder : IFeeder
     {
-        HidController Hid { get; }
+        IHidConnection Hid { get; }
         void OnHidLog(object sender, LogArgs e);
         ushort VendorId { get; }
         ushort ProductId { get; }

@@ -121,7 +121,9 @@
     <Compile Include="Feeders\IFeeder.cs" />
     <Compile Include="Feeders\IKeyboardFeeder.cs" />
     <Compile Include="Feeders\IMouseFeeder.cs" />
-    <Compile Include="Feeders\ITetherScriptFeeder.cs" />
+    <Compile Include="Feeders\IHidFeeder.cs" />
+    <Compile Include="Feeders\KeyboardMappingHelper.cs" />
+    <Compile Include="Feeders\MouseFeederHelper.cs" />
     <Compile Include="GunStates\GunState.cs" />
     <Compile Include="GunStates\IGunState.cs" />
     <Compile Include="Calibration\GunCalibration.cs" />

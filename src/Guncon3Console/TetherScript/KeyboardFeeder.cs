@@ -8,20 +8,17 @@ using System.Threading;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class KeyboardFeeder : BaseDisposableFeeder<byte>, ITetherScriptFeeder, IKeyboardFeeder
+    internal sealed class KeyboardFeeder : BaseTetherScriptFeeder<byte>, IHidFeeder, IKeyboardFeeder
     {
-        private readonly HidController _hid = new HidController();
-        public HidController Hid => _hid;
         private readonly uint _fTimeout = 5000;
         private readonly byte[] _lastKeys = new byte[6];
         private bool _lastHadAny = false;
         private long _lastSendTicks = 0;
         private readonly long _minSendIntervalTicks = TimeSpan.FromMilliseconds(2).Ticks;
-        public KeyboardFeeder() { }
+
         public override string Name => "TetherScript Keyboard";
-        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
-        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
-        public override bool IsConnected => _hid.Connected;
+        public override ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_KEYBOARD;
+
         protected override byte ConvertMapping(dynamic mapping)
         {
             if (mapping is byte b)
@@ -32,33 +29,21 @@ namespace Guncon3Console.TetherScript
                 return (byte)hidEnum;
             return base.ConvertMapping((byte)mapping);
         }
+
         public override void Connect()
         {
-            _hid.OnLog += OnHidLog;
-            _hid.VendorID = VendorId;
-            _hid.ProductID = ProductId;
-            _hid.Connect();
-            if (!_hid.Connected)
-                throw new Exception("Could not connect to TetherScript Keyboard.");
+            base.Connect();
             Array.Clear(_lastKeys, 0, _lastKeys.Length);
             _lastHadAny = false;
             _lastSendTicks = 0;
         }
+
         public override void Disconnect()
         {
             try { Send(0, 0, 0, 0, 0, 0, 0, 0); } catch { }
-            _hid.Disconnect();
-            _hid.OnLog -= OnHidLog;
+            base.Disconnect();
         }
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Disconnect();
-                _hid.Dispose();
-            }
-        }
-        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
+
         private void Send(byte Modifier, byte Padding, byte Key0, byte Key1, byte Key2, byte Key3, byte Key4, byte Key5)
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
@@ -77,8 +62,9 @@ namespace Guncon3Console.TetherScript
             };
 
             byte[] buf = TetherScriptMarshal.StructToBytes(data);
-            _hid.SendData(buf, (uint)buf.Length);
+            SendHidReport(buf);
         }
+
         public void Ping()
         {
             SetFeatureKeyboard data = new SetFeatureKeyboard
@@ -88,7 +74,7 @@ namespace Guncon3Console.TetherScript
                 Timeout = _fTimeout / 5
             };
             byte[] buf = TetherScriptMarshal.StructToBytes(data);
-            _hid.SendData(buf, (uint)buf.Length);
+            SendHidReport(buf);
         }
         public override void Feed(IGunState state)
         {

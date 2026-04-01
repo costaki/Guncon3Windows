@@ -9,6 +9,10 @@ namespace Guncon3Console.Common.Hid
 
         bool Connected { get; }
 
+        ushort ProductID { get; set; }
+
+        ushort VendorID { get; set; }
+
         void Connect();
 
         void Disconnect();

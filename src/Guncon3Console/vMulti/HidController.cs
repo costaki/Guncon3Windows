@@ -27,6 +27,8 @@ namespace Guncon3Console.vMulti
         private readonly byte[] _controlReportBuffer = new byte[CONTROL_REPORT_SIZE];
 
         public bool Connected => _deviceHandle != null && !_deviceHandle.IsInvalid;
+        public ushort ProductID { get; set; }
+        public ushort VendorID { get; set; }
 
         private void DoLog(string msg)
         {

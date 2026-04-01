@@ -8,12 +8,10 @@ using Guncon3Console.Common;
 
 namespace Guncon3Console.TetherScript
 {
-    internal sealed class RelativeMouseFeeder : BaseDisposableFeeder<MouseButton>, IMouseFeeder, ITetherScriptFeeder
+    internal sealed class RelativeMouseFeeder : BaseTetherScriptMouseFeeder, IMouseFeeder, IHidFeeder
     {
-        private readonly HidController _hid = new HidController();
-        public HidController Hid => _hid;
-        private byte _btns;
-        public bool Force4by3 { get; set; } = false;
+        public override string Name => "TetherScript RelMouse";
+        public override ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
 
         // Tunables (servo)
         // Cursor error (in pixels) is multiplied by Kp to produce a relative delta.
@@ -40,63 +38,15 @@ namespace Guncon3Console.TetherScript
         private int _m1x, _m2x, _m3x;
         private int _m1y, _m2y, _m3y;
         private int _mCount;
-        public RelativeMouseFeeder() { }
-
-        public override string Name => "TetherScript RelMouse";
-
-        public ushort VendorId => (ushort)DriversConst.TTC_VENDORID;
-        public ushort ProductId => (ushort)DriversConst.TTC_PRODUCTID_MOUSEREL;
-
-        public override bool IsConnected => _hid.Connected;
-
-        public override void Connect()
-        {
-            _hid.OnLog += OnHidLog;
-            _hid.VendorID = VendorId;
-            _hid.ProductID = ProductId;
-            _hid.Connect();
-
-            if (!_hid.Connected)
-                throw new Exception("Could not connect to TetherScript's RelMouse");
-
-            _btns = 0;
-        }
-
-        public override void Disconnect()
-        {
-            _hid.Disconnect();
-            _hid.OnLog -= OnHidLog;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Disconnect();
-                _hid.Dispose();
-            }
-        }
-
-        public void OnHidLog(object sender, LogArgs e) => Log(e.Msg);
 
         public override void Feed(IGunState state)
         {
-            // Buttons
-            _btns = 0;
-            foreach (var map in _mapping)
-            {
-                if (!state.BtnState.TryGetValue(map.Key, out bool pressed) || !pressed)
-                    continue;
-
-                if (map.Value == MouseButton.Left) _btns = (byte)(_btns | 1);
-                if (map.Value == MouseButton.Right) _btns = (byte)(_btns | (1 << 1));
-                if (map.Value == MouseButton.Middle) _btns = (byte)(_btns | (1 << 2));
-            }
+            ComputeButtonsMask(state);
 
             // If outside screen, send zero delta but still update buttons.
             if (!state.IsInsideScreen)
             {
-                Send_Data_To_MouseRel(_btns, 0, 0);
+                Send_Data_To_MouseRel(_buttons, 0, 0);
                 _lastDx = 0;
                 _lastDy = 0;
                 _settled = false;
@@ -143,7 +93,7 @@ namespace Guncon3Console.TetherScript
             {
                 if (Math.Abs(ex) <= unlock && Math.Abs(ey) <= unlock)
                 {
-                    Send_Data_To_MouseRel(_btns, 0, 0);
+                    Send_Data_To_MouseRel(_buttons, 0, 0);
                     _lastDx = 0;
                     _lastDy = 0;
                     return;
@@ -154,7 +104,7 @@ namespace Guncon3Console.TetherScript
             if (ex == 0 && ey == 0)
             {
                 _settled = true;
-                Send_Data_To_MouseRel(_btns, 0, 0);
+                Send_Data_To_MouseRel(_buttons, 0, 0);
                 _lastDx = 0;
                 _lastDy = 0;
                 return;
@@ -188,7 +138,7 @@ namespace Guncon3Console.TetherScript
             if (InvertX) dx = -dx;
             if (InvertY) dy = -dy;
 
-            Send_Data_To_MouseRel(_btns, (short)dx, (short)dy);
+            Send_Data_To_MouseRel(_buttons, (short)dx, (short)dy);
 
             _lastDx = dx;
             _lastDy = dy;
@@ -301,7 +251,7 @@ namespace Guncon3Console.TetherScript
             buf[2] = buttons;
             buf[3] = unchecked((byte)dx8);
             buf[4] = unchecked((byte)dy8);
-            _hid.SendData(buf, (uint)buf.Length);
+            SendHidReport(buf);
         }
 
         private static sbyte ToSByte(short v)
@@ -311,5 +261,4 @@ namespace Guncon3Console.TetherScript
             return (sbyte)v;
         }
     }
-    // ...structs...
 }
